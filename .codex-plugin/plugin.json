@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "2.0.0",
-  "description": "Low-token shell sleep and wait for Codex.",
+  "version": "2.0.1",
+  "description": "Native shell sleep and deterministic wait for Codex.",
   "author": {
     "name": "yptang98",
     "email": "yptang98@gmail.com",
@@ -14,14 +14,14 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "WakeWait",
-    "shortDescription": "Low-token shell sleep and wait for Codex.",
-    "longDescription": "WakeWait is a skill-only Codex plugin with bundled PowerShell and POSIX shell scripts for sleep, wait-file, wait-contains, and wait-command. The skill stays short while scripts handle duration parsing, polling, timeouts, and timestamps without model polling or persistent state.",
+    "shortDescription": "Native shell sleep and deterministic wait for Codex.",
+    "longDescription": "WakeWait is a skill-only Codex plugin. Fixed-duration sleep uses native shell commands directly, while bundled PowerShell and POSIX scripts handle wait-file, wait-contains, and wait-command without model polling or persistent state.",
     "developerName": "yptang98",
     "category": "Productivity",
     "capabilities": ["Automation"],
     "websiteURL": "https://github.com/yptang98/WakeWait",
     "defaultPrompt": [
-      "Use WakeWait for a 10-minute shell sleep.",
+      "Use WakeWait for a 10-minute native shell sleep.",
       "Wait for an output file with the bundled WakeWait shell script.",
       "Install the WakeWait v2 skill and scripts."
     ],

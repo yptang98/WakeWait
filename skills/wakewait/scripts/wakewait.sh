@@ -78,9 +78,8 @@ case "$action" in
   sleep)
     if [ -n "$seconds" ]; then delay="$seconds"; else delay="$(to_seconds "$duration")"; fi
     [ "$delay" -gt 0 ] || { echo "wakewait: sleep requires --duration or --seconds" >&2; exit 2; }
-    echo "wakewait sleep start $(now_text) seconds=$delay"
     sleep_quiet "$delay"
-    echo "wakewait sleep woke $(now_text)"
+    now_text
     exit 0
     ;;
   wait-file|wait-contains|wait-command)

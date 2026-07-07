@@ -6,14 +6,29 @@
 
 Low-token shell waiting for Codex.
 
-WakeWait v2 is a skill plus bundled shell scripts. Codex reads a tiny skill, then calls the script for sleep or deterministic waiting. The script handles duration parsing, sleeping, polling, timeouts, and timestamps, so the model does not burn tokens or pollute context while idle.
+WakeWait v2 is a skill plus bundled shell scripts. Codex reads a tiny skill, uses native shell sleep for fixed waits, and calls the bundled script for deterministic readiness checks. This keeps the model from polling or polluting context while idle.
 
 ## Commands
+
+Fixed sleep uses the shell directly:
 
 PowerShell:
 
 ```powershell
-& "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" sleep -Duration 10m
+Start-Sleep -Seconds 600; Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
+```
+
+macOS / Linux:
+
+```bash
+sleep 600; date '+%Y-%m-%d %H:%M:%S %z'
+```
+
+Rule waits use the bundled script:
+
+PowerShell:
+
+```powershell
 & "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" wait-file -Path .\outputs\done.json -Every 30s -Timeout 2h
 & "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" wait-contains -Path .\logs\train.log -Text "Evaluation complete" -Every 1m -Timeout 6h
 & "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" wait-command -Command "python scripts/check_ready.py" -Every 1m -Timeout 2h
@@ -22,7 +37,6 @@ PowerShell:
 macOS / Linux:
 
 ```bash
-sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" sleep --duration 10m
 sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" wait-file --path outputs/done.json --every 30s --timeout 2h
 sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" wait-contains --path logs/train.log --text "Evaluation complete" --every 1m --timeout 6h
 sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" wait-command --command "python scripts/check_ready.py" --every 1m --timeout 2h
@@ -56,9 +70,9 @@ The installer copies `skills/wakewait` into detected global Codex skill roots su
 
 ## Design
 
-- Skill stays short: just invocation policy and examples.
-- Shell scripts do the real work: sleep, wait-file, wait-contains, wait-command.
-- Output stays quiet: start line, ready/woke/timeout line, no per-poll chatter.
+- Fixed sleep stays native: `Start-Sleep` or `sleep`, followed by a timestamp.
+- Shell scripts do deterministic rule waits: wait-file, wait-contains, wait-command.
+- Output stays quiet: ready/timeout lines for rule waits, no per-poll chatter.
 - No Node runtime, background daemon, model polling loop, or persistent state.
 
 ## Uninstall

@@ -60,9 +60,8 @@ function Wait-Until {
 if ($Action -eq "sleep") {
   $delay = if ($Seconds -gt 0) { $Seconds } else { Convert-ToSeconds $Duration }
   if ($delay -le 0) { throw "sleep requires -Duration or -Seconds." }
-  Write-Output "wakewait sleep start $(NowText) seconds=$delay"
   Sleep-Quiet $delay
-  Write-Output "wakewait sleep woke $(NowText)"
+  Write-Output (NowText)
   exit 0
 }
 
