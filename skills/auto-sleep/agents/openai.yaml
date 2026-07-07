@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auto Sleep"
+  short_description: "Automatically defer long waits"
+  default_prompt: "Use $auto-sleep to decide whether a long-running training, download, queue, or shell task should be deferred with /sleep or /wait-for."

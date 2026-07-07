@@ -1,0 +1,31 @@
+{
+  "name": "wakewait",
+  "version": "0.0.0",
+  "description": "Auto sleep and long waits for agent CLIs.",
+  "author": {
+    "name": "yptang98",
+    "email": "yptang98@gmail.com",
+    "url": "https://github.com/yptang98"
+  },
+  "homepage": "https://github.com/yptang98/WakeWait#readme",
+  "repository": "https://github.com/yptang98/WakeWait",
+  "license": "MIT",
+  "keywords": ["wakewait", "auto-sleep", "long-waits", "agent-cli"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "WakeWait",
+    "shortDescription": "Auto sleep and long waits for agent CLIs.",
+    "longDescription": "WakeWait adds local sleep, condition polling, persisted wait state, status/cancel commands, health reviews, and optional background recovery for long-running jobs.",
+    "developerName": "yptang98",
+    "category": "Productivity",
+    "capabilities": ["Write", "Automation"],
+    "websiteURL": "https://github.com/yptang98/WakeWait",
+    "defaultPrompt": [
+      "Install WakeWait and verify it works.",
+      "Use WakeWait for a long training job.",
+      "Check and cancel persisted WakeWait tasks."
+    ],
+    "brandColor": "#14B8A6",
+    "logo": "./assets/wakewait-cover.png"
+  }
+}
