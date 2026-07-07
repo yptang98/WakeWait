@@ -10,6 +10,8 @@ WakeWait lets Codex or another agent stop spending model time while training job
 
 WakeWait is not an intelligent scheduler. It is a small local waiting layer plus one Codex skill that helps the agent choose simple wait intervals.
 
+After installation, the `wakewait` skill is intended to become Codex's default behavior for sleep, wait, pause, poll, training/download waits, and deterministic readiness checks.
+
 ## CLI Purpose
 
 The `wakewait` CLI exists to make local waiting consistent and recoverable:
@@ -32,7 +34,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify WakeWait by calling its installed launcher path directly, verify `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example using the installed launcher path.
+Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify WakeWait by calling its installed launcher path directly, verify the `wakewait` skill was installed into my global Codex skills root, verify `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example using the installed launcher path.
 ```
 
 Codex can clone the repo, run the installer, install the WakeWait skills, verify the CLI, and report the commands you can use.
@@ -57,10 +59,12 @@ The installer:
 
 - installs helper files under `~/.wakewait`
 - creates `wakewait` and `pi-wait-patch` launchers under `~/.wakewait/bin`
-- installs the `wakewait` skill into `~/.codex/skills`
+- installs the `wakewait` skill into all detected global Codex skill roots
 - removes older WakeWait-managed legacy skill copies if present
 - optionally patches detected Pi coding-agent runtimes with `/sleep` and `/wait-for`
 - creates backups so uninstall can restore patched runtime files
+
+Detected skill roots include `CODEX_HOME/skills`, `~/.codex/skills`, a sibling `codex/skills` directory when installing from a local clone, and common existing roots such as `D:\codex\skills` on Windows. To force a specific root, pass `--skills-root <path>` to the installer.
 
 WakeWait does not modify user `PATH`. The skill tells Codex to call the installed launcher directly:
 

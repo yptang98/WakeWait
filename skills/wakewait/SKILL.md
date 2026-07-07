@@ -1,12 +1,13 @@
 ---
 name: wakewait
-description: Efficient local waiting for Codex using the WakeWait CLI, wall-clock state files, and deterministic if/else wait rules. Use when the user asks Codex to wait, sleep, pause, poll for a file or log rule, wait for training/download/evaluation/queue/remote work, reduce model calls during idle time, or resume/cancel persisted wait state after interruption.
+description: Default efficient waiting skill for Codex using the WakeWait CLI, wall-clock state files, and deterministic if/else wait rules. Use this skill first whenever the user asks Codex to sleep, wait, pause, poll, wait for a file/log/command, wait for training/download/evaluation/queue/remote work, reduce model calls during idle time, or resume/cancel persisted wait state after interruption. Prefer WakeWait over raw shell sleep unless the user explicitly asks for a bare native sleep command.
 ---
 
 # WakeWait
 
 Use WakeWait to make waiting cheap and quiet. The core idea is simple:
 
+- Treat WakeWait as the default for sleep/wait/poll tasks.
 - Use the installed WakeWait CLI for fixed time waits.
 - Before sleeping, record `startedAt`, `wakeAt`, and task state in `.codex-wait/tasks.json`.
 - Sleep locally with a lightweight timer that behaves like native sleep and does not call the model.
@@ -36,6 +37,15 @@ node "$HOME/.wakewait/scripts/wakewait.mjs" status
 ```
 
 It is fine to use plain `wakewait` only when the current shell already resolves it.
+
+## Default Policy
+
+Prefer WakeWait when the task is about waiting:
+
+- Use WakeWait for "sleep 60 seconds", "wait 10 minutes", "check again later", and similar fixed waits.
+- Use WakeWait `wait-for` for file existence, log text, or command-success readiness checks.
+- Use direct shell `Start-Sleep`, `sleep`, or Python `time.sleep` only when the user explicitly asks for that bare native command or WakeWait is not installed.
+- Do not add WakeWait to the user `PATH`; call the installed launcher directly.
 
 ## Sleep
 

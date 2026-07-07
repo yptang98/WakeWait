@@ -1,6 +1,8 @@
 param(
-  [string]$Version = "v1.0.6",
+  [string]$Version = "v1.0.7",
   [string]$Root = "",
+  [string]$CodexHome = "",
+  [string[]]$SkillsRoot = @(),
   [switch]$NoCodexSkills,
   [switch]$NoPatch
 )
@@ -34,6 +36,10 @@ if ($repoRoot -and (Test-Path (Join-Path $repoRoot ".codex-plugin\plugin.json"))
 $nodeExe = Find-Node
 $args = @((Join-Path $workDir "scripts\install.mjs"))
 if ($Root) { $args += @("--root", $Root) }
+if ($CodexHome) { $args += @("--codex-home", $CodexHome) }
+foreach ($rootPath in $SkillsRoot) {
+  if ($rootPath) { $args += @("--skills-root", $rootPath) }
+}
 if ($NoCodexSkills) { $args += "--no-codex-skills" }
 if ($NoPatch) { $args += "--no-patch" }
 & $nodeExe @args

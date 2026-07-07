@@ -1,11 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v1.0.6}"
-root_arg=""
-if [ "${1:-}" = "--root" ]; then
-  root_arg="--root $2"
-fi
+version="${WAKEWAIT_VERSION:-v1.0.7}"
 
 find_node() {
   if command -v node >/dev/null 2>&1; then
@@ -33,8 +29,7 @@ if [ ! -f "$repo_root/.codex-plugin/plugin.json" ]; then
 fi
 
 node_bin=$(find_node)
-# shellcheck disable=SC2086
-"$node_bin" "$repo_root/scripts/install.mjs" $root_arg
+"$node_bin" "$repo_root/scripts/install.mjs" "$@"
 
 wakewait_home="${WAKEWAIT_HOME:-$HOME/.wakewait}"
 bin_dir="$wakewait_home/bin"

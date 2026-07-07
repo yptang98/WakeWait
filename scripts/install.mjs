@@ -17,7 +17,7 @@ import { findPiCodingAgentPackageRoots, patchPiWaitRuntimeRoots } from "./patch-
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const wakewaitHome = resolve(process.env.WAKEWAIT_HOME || join(homedir(), ".wakewait"));
 const manifestPath = join(wakewaitHome, "install-manifest.json");
-const codexHome = resolve(process.env.CODEX_HOME || join(homedir(), ".codex"));
+const defaultCodexHome = resolve(process.env.CODEX_HOME || join(homedir(), ".codex"));
 
 function log(message) {
 	console.log(`[wakewait] ${message}`);
@@ -48,6 +48,7 @@ function copyManagedSkill(skillName, targetRoot, manifest) {
 	copyDir(source, target);
 	writeFileSync(join(target, ".wakewait-managed"), "managed by WakeWait\n", "utf8");
 	manifest.installedPaths.push(target);
+	manifest.installedSkillRoots.push(targetRoot);
 }
 
 function removeManagedSkill(skillName, targetRoot) {
@@ -64,6 +65,43 @@ function npmRootGlobal() {
 
 function pushIfExists(values, path) {
 	if (path && existsSync(path)) values.push(path);
+}
+
+function pushPath(values, path) {
+	if (path) values.push(path);
+}
+
+function splitPathList(value) {
+	return String(value || "")
+		.split(process.platform === "win32" ? ";" : ":")
+		.map((entry) => entry.trim())
+		.filter(Boolean);
+}
+
+function detectedCodexSkillRoots(explicitRoots = []) {
+	const explicit = [
+		...explicitRoots,
+		...splitPathList(process.env.WAKEWAIT_CODEX_SKILLS),
+		...splitPathList(process.env.CODEX_SKILLS_ROOT),
+	];
+	if (explicit.length > 0) {
+		return Array.from(new Set(explicit.map((root) => resolve(root))));
+	}
+
+	const roots = [];
+	pushPath(roots, join(defaultCodexHome, "skills"));
+	pushPath(roots, join(homedir(), ".codex", "skills"));
+	pushIfExists(roots, join(dirname(repoRoot), "skills"));
+	pushIfExists(roots, join(process.cwd(), "skills"));
+	if (process.platform === "win32") {
+		for (let code = 67; code <= 90; code += 1) {
+			pushIfExists(roots, `${String.fromCharCode(code)}:\\codex\\skills`);
+		}
+	} else {
+		pushIfExists(roots, "/codex/skills");
+		pushIfExists(roots, "/workspace/codex/skills");
+	}
+	return Array.from(new Set(roots.map((root) => resolve(root))));
 }
 
 function candidateRoots(extraRoots) {
@@ -108,19 +146,22 @@ function installHelperBin(manifest) {
 
 function parseArgs(argv) {
 	const roots = [];
+	const skillRoots = [];
 	let installCodexSkills = true;
 	let patchRuntime = true;
 	for (let i = 0; i < argv.length; i += 1) {
 		const arg = argv[i];
 		if (arg === "--root") roots.push(argv[++i]);
+		else if (arg === "--codex-home") skillRoots.push(join(resolve(argv[++i]), "skills"));
+		else if (arg === "--skills-root") skillRoots.push(resolve(argv[++i]));
 		else if (arg === "--no-codex-skills") installCodexSkills = false;
 		else if (arg === "--no-patch") patchRuntime = false;
 		else if (arg === "--help") {
-			console.log("Usage: node scripts/install.mjs [--root <path>] [--no-codex-skills] [--no-patch]");
+			console.log("Usage: node scripts/install.mjs [--root <path>] [--codex-home <path>] [--skills-root <path>] [--no-codex-skills] [--no-patch]");
 			process.exit(0);
 		}
 	}
-	return { roots, installCodexSkills, patchRuntime };
+	return { roots, skillRoots, installCodexSkills, patchRuntime };
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -128,20 +169,24 @@ const manifest = readJson(manifestPath, { version: 1, installedPaths: [], backup
 manifest.version = 1;
 manifest.installedAt = new Date().toISOString();
 manifest.installedPaths = Array.from(new Set(manifest.installedPaths || []));
+manifest.installedSkillRoots = Array.from(new Set(manifest.installedSkillRoots || []));
 manifest.backups = manifest.backups || [];
 
 mkdirSync(wakewaitHome, { recursive: true });
 copyDir(join(repoRoot, "scripts"), join(wakewaitHome, "scripts"));
 copyDir(join(repoRoot, "skills"), join(wakewaitHome, "skills"));
 const binDir = installHelperBin(manifest);
+const launcherPath = join(binDir, process.platform === "win32" ? "wakewait.cmd" : "wakewait");
 
 if (options.installCodexSkills) {
-	const codexSkills = join(codexHome, "skills");
-	mkdirSync(codexSkills, { recursive: true });
-	removeManagedSkill("auto-sleep", codexSkills);
-	removeManagedSkill("deferred-wait", codexSkills);
-	copyManagedSkill("wakewait", codexSkills, manifest);
-	log(`installed Codex skills to ${codexSkills}`);
+	const skillRoots = detectedCodexSkillRoots(options.skillRoots);
+	for (const codexSkills of skillRoots) {
+		mkdirSync(codexSkills, { recursive: true });
+		removeManagedSkill("auto-sleep", codexSkills);
+		removeManagedSkill("deferred-wait", codexSkills);
+		copyManagedSkill("wakewait", codexSkills, manifest);
+		log(`installed wakewait skill to ${codexSkills}`);
+	}
 }
 
 let results = [];
@@ -155,13 +200,15 @@ if (options.patchRuntime) {
 	results = patchPiWaitRuntimeRoots(roots, { verbose: false });
 }
 
+manifest.installedPaths = Array.from(new Set(manifest.installedPaths || []));
+manifest.installedSkillRoots = Array.from(new Set(manifest.installedSkillRoots || []));
 writeJson(manifestPath, manifest);
 
 if (!options.patchRuntime) {
 	log("skipped optional Pi runtime patch");
 } else if (results.length === 0) {
 	log("no Pi runtime was patched. This is fine; WakeWait CLI and Codex skills are installed.");
-	log("to add optional /sleep and /wait-for slash commands later, run: wakewait patch --root <runtime-or-node_modules-path>");
+	log(`to add optional /sleep and /wait-for slash commands later, run: ${launcherPath} patch --root <runtime-or-node_modules-path>`);
 } else {
 	for (const result of results) {
 		const changed = result.files.some((file) => file.changed);
@@ -171,5 +218,5 @@ if (!options.patchRuntime) {
 
 log(`installed helper files to ${wakewaitHome}`);
 log(`launcher directory: ${binDir}`);
-log(`use the CLI directly from ${join(binDir, process.platform === "win32" ? "wakewait.cmd" : "wakewait")}`);
+log(`use the CLI directly from ${launcherPath}`);
 log("restart Codex before relying on newly installed WakeWait skills.");

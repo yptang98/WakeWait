@@ -1,4 +1,4 @@
 interface:
   display_name: "WakeWait"
-  short_description: "Wait locally with wall-clock sleep or fixed rules"
-  default_prompt: "Use $wakewait to wait efficiently with CLI sleep, wall-clock state, and deterministic WakeWait rules for persisted or background waits."
+  short_description: "Default local sleep and wait rules"
+  default_prompt: "Use $wakewait first for sleep, wait, pause, polling, training/download waits, wall-clock state, and deterministic WakeWait rules."
