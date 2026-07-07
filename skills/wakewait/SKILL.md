@@ -1,20 +1,12 @@
 ---
 name: wakewait
-description: Low-token wait/sleep router for Codex. Use when asked to wait, sleep, pause, check later, or wait for training/download/evaluation readiness. Plain duration waits use native shell sleep; file/text/command readiness uses bundled WakeWait scripts. No model polling.
+description: "Low-token wait/sleep routing for Codex. Use for wait, sleep, pause, check later, training/download/eval waits. Duration uses native shell sleep. File/text/command readiness uses bundled scripts. No model polling."
 ---
 
 # WakeWait
 
-Use the cheapest deterministic path.
+Duration wait: `Start-Sleep -Seconds <n>; Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'` or `sleep <n>; date '+%Y-%m-%d %H:%M:%S %z'`.
 
-Plain duration wait:
+Condition wait: run `$HOME/.codex/skills/wakewait/scripts/wakewait.sh` or `$HOME\.codex\skills\wakewait\scripts\wakewait.ps1` with `wait-file`, `wait-contains`, or `wait-command`.
 
-- PowerShell: `Start-Sleep -Seconds <n>; Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'`
-- POSIX: `sleep <n>; date '+%Y-%m-%d %H:%M:%S %z'`
-
-Rule wait:
-
-- PowerShell: `$HOME\.codex\skills\wakewait\scripts\wakewait.ps1`
-- POSIX: `$HOME/.codex/skills/wakewait/scripts/wakewait.sh`
-
-Actions: `wait-file`, `wait-contains`, `wait-command`. No model polling or progress chatter.
+No model polling. No progress chatter.

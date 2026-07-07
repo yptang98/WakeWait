@@ -49,7 +49,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README and repository scripts to install it for my OS. Verify the wakewait skill and bundled scripts were installed into my global Codex skills root. After install, future wait, sleep, pause, check-later, training, download, and evaluation waits should prefer WakeWait's low-token routing: native shell sleep for plain duration waits, bundled scripts for file/text/command readiness. Keep the loaded skill context small.
+Run the repository installer for my OS and verify the wakewait skill is in my global Codex skills root.
 ```
 
 The installer copies `skills/wakewait` into detected global Codex skill roots such as `CODEX_HOME/skills`, `~/.codex/skills`, or an existing `D:\codex\skills` on Windows.
@@ -67,7 +67,7 @@ The installer copies `skills/wakewait` into detected global Codex skill roots su
 Give Codex this prompt:
 
 ```text
-Uninstall WakeWait from my global Codex skills roots using the uninstall script installed by WakeWait. Verify the wakewait skill folder is gone.
+Uninstall WakeWait using its installed uninstall script and verify the wakewait skill folder is gone.
 ```
 
 ## License
