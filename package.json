@@ -1,6 +1,6 @@
 {
   "name": "wakewait",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "WakeWait: independent auto sleep and long waits for agent CLIs",
   "license": "MIT",
   "type": "module",

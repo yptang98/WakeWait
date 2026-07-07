@@ -15,7 +15,7 @@ WakeWait lets Codex or another agent stop spending model time while training job
 Give Codex this prompt:
 
 ```text
-Install WakeWait v1 from https://github.com/yptang98/WakeWait.
+Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
 Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify `wakewait status` and `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example.
 ```
@@ -57,6 +57,22 @@ wakewait status
 ```
 
 Sleep for a fixed time:
+
+For a short foreground wait, just use the native shell. This is the most comfortable auto-sleep path.
+
+Windows PowerShell:
+
+```powershell
+Start-Sleep -Seconds 60; Get-Date -Format o
+```
+
+macOS / Linux:
+
+```bash
+sleep 60; date -Iseconds
+```
+
+Use WakeWait when you need background recovery or persisted state:
 
 ```bash
 wakewait sleep 30m --background --on-ready "codex \"check logs/train.log and summarize progress\""

@@ -1,11 +1,29 @@
 ---
 name: auto-sleep
-description: Automatically decide when a long-running training, download, upload, queue, evaluation, remote job, or shell command should be deferred with WakeWait instead of keeping the model active. Use when Codex has started or observed work likely to take minutes or hours, repeated polling would waste model time, or persisted wait state should be checked after an interruption.
+description: Automatically decide when to wait, sleep, pause, or defer work without keeping the model active. Use when the user asks Codex to wait/sleep for seconds or minutes, when a long-running training/download/upload/queue/evaluation/remote job is running, when repeated polling would waste model time, or when persisted wait state should be checked after an interruption.
 ---
 
 # Auto Sleep
 
-Use this skill as the policy layer for automatic waiting. It must not introduce a new `/auto-sleep` command or replace existing behavior. Decide whether waiting is appropriate, then use `deferred-wait` for the exact mechanism.
+Use this skill as the policy layer for automatic waiting. It must not introduce a new `/auto-sleep` command or replace existing behavior. Decide whether waiting is appropriate, then choose the lightest mechanism.
+
+## Fast Path
+
+For simple foreground waits, use the host shell directly. This is the default for "wait 60 seconds", "sleep 5 minutes", "pause and tell me the time", or any short pure time delay that does not need persistence.
+
+PowerShell:
+
+```powershell
+Start-Sleep -Seconds 60; Get-Date -Format o
+```
+
+POSIX shell:
+
+```bash
+sleep 60; date -Iseconds
+```
+
+Use this native path for short waits because it is already installed, obvious in the CLI, does not call the model while waiting, and avoids WakeWait setup friction on a new machine.
 
 Prefer a host-native `/sleep` or `/wait-for` command when it is visibly available in the current CLI. Otherwise use the independent WakeWait CLI. Keep waiting deterministic so the model is not called during the wait loop:
 
@@ -22,6 +40,8 @@ Before starting a new wait, run `wakewait status` when either is true:
 - The current task mentions resuming, interruption, previous wait, training progress, downloads, queues, or long-running jobs.
 
 If a persisted task is overdue or marked `health_failed`, inspect the relevant condition, logs, tmux session, process, or outputs before sleeping again. If a task is still running with meaningful time remaining, continue from that state instead of creating a duplicate wait.
+
+Do not run `wakewait status` before a simple native sleep unless there is evidence of persisted WakeWait state.
 
 ## Auto-Sleep Decision
 
@@ -42,7 +62,7 @@ Do not defer when:
 
 ## Choose Command
 
-Keep simple timed waits simple. Use `sleep` when the next useful action is just "come back later"; do not convert a plain sleep into `wait-for` only to get reviews, persistence, or extra status.
+Keep simple timed waits simple. For short foreground delays, prefer native shell sleep over `wakewait sleep`. Use `wakewait sleep` only when background recovery, persisted state, or an explicit `--on-ready` command is useful.
 
 Prefer simple rules when they can decide readiness:
 

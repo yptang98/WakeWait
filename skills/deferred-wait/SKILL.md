@@ -35,6 +35,20 @@ Do not sleep when:
 
 Keep this path quiet. A timed sleep should show at most start/wake/cancel/timeout style status, not periodic progress chatter.
 
+For short foreground waits, prefer native shell sleep because it is the simplest and most portable user experience.
+
+PowerShell:
+
+```powershell
+Start-Sleep -Seconds 60; Get-Date -Format o
+```
+
+POSIX shell:
+
+```bash
+sleep 60; date -Iseconds
+```
+
 Use a host slash command if available:
 
 ```text
@@ -46,6 +60,8 @@ Otherwise use WakeWait:
 ```bash
 wakewait sleep <duration> --background --on-ready "<resume command>"
 ```
+
+Use WakeWait instead of native sleep when the wait should continue after the CLI exits, needs persisted state, should run an `--on-ready` command, or is part of a rule-based wait.
 
 Examples:
 

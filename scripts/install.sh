@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v1.0.2}"
+version="${WAKEWAIT_VERSION:-v1.0.3}"
 root_arg=""
 if [ "${1:-}" = "--root" ]; then
   root_arg="--root $2"

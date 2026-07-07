@@ -1,6 +1,6 @@
 {
   "name": "wakewait",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Independent auto sleep and long waits for agent CLIs.",
   "author": {
     "name": "yptang98",
@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "WakeWait",
     "shortDescription": "Independent auto sleep and long waits for agent CLIs.",
-    "longDescription": "WakeWait adds an independent local CLI plus Codex skills for timed sleep, deterministic wait rules, persisted wait state, status/cancel commands, fixed health-rule scans, and optional background recovery for long-running jobs without model calls during the wait loop.",
+    "longDescription": "WakeWait adds Codex skills that choose native shell sleep for simple waits and an independent local CLI for background waits, deterministic wait rules, persisted wait state, status/cancel commands, fixed health-rule scans, and optional recovery for long-running jobs without model calls during the wait loop.",
     "developerName": "yptang98",
     "category": "Productivity",
     "capabilities": ["Write", "Automation"],
