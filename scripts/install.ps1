@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "v1",
+  [string]$Version = "v1.0.1",
   [string]$Root = "",
   [switch]$NoCodexSkills,
   [switch]$NoPatch

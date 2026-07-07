@@ -33,6 +33,8 @@ Do not sleep when:
 
 ## Timed Sleep
 
+Keep this path quiet. A timed sleep should show at most start/wake/cancel/timeout style status, not periodic progress chatter.
+
 Use a host slash command if available:
 
 ```text
@@ -62,6 +64,8 @@ Choose a duration from the evidence:
 
 ## Conditional Wait
 
+Use this only when a concrete condition can be checked. By default, repeated failed polling attempts should stay quiet; use `--verbose` only when the user explicitly wants progress messages for each poll.
+
 Use a host slash command if available:
 
 ```text
@@ -86,6 +90,7 @@ Condition rules:
 - The condition succeeds when the shell command exits with code 0.
 - Always include `--timeout`; do not poll forever.
 - Use `--every` values that match the expected cadence. Avoid busy polling.
+- Add `--verbose` only when repeated "condition not met" status is actually useful.
 - For waits longer than about 30 minutes, keep the default health review or set `--review-every` explicitly.
 - Use `--review` to record which logs, tmux sessions, queues, or metrics should be inspected.
 - Use `--on-review "<command>"` only when an external command should run during background health reviews.

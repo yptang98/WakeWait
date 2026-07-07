@@ -42,19 +42,21 @@ Do not defer when:
 
 ## Choose Command
 
+Keep simple timed waits simple. Use `sleep` when the next useful action is just "come back later"; do not convert a plain sleep into `wait-for` only to get reviews, persistence, or extra status.
+
 Prefer condition polling when a cheap command can decide readiness:
 
 ```bash
 wakewait wait-for --condition "<shell command>" --every <duration> --timeout <duration> --background --review-every 30m --review "<health checks>"
 ```
 
-Use timed sleep only when there is no reliable condition:
+Use timed sleep when there is no reliable condition, or when the user simply asked to pause and resume later:
 
 ```bash
 wakewait sleep <duration> --background --on-ready "<specific resume command>"
 ```
 
-For training, downloads, queues, and remote jobs longer than about 10 minutes, keep persisted state; WakeWait does this by default. For waits longer than about 30 minutes, keep health reviews enabled unless the condition is low-risk.
+For training, downloads, queues, and remote jobs longer than about 10 minutes, keep persisted state; WakeWait does this by default. Health reviews belong to `wait-for`, not plain `sleep`.
 
 Use `--background` only when the user wants the wait to continue after the current CLI command exits. It is not required for a host-native slash command that already pauses and resumes the agent session.
 

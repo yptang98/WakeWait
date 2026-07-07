@@ -361,6 +361,7 @@ function parseFeynmanWaitForOptions(optionsText) {
     let persistId;
     let background = false;
     let onReady;
+    let verbose = false;
     let timeoutMs;
     const positional = [];
     for (let i = 0; i < tokens.length; i++) {
@@ -423,6 +424,14 @@ function parseFeynmanWaitForOptions(optionsText) {
             persist = true;
             continue;
         }
+        if (token === "--verbose" || token === "-v") {
+            verbose = true;
+            continue;
+        }
+        if (token === "--quiet" || token === "-q") {
+            verbose = false;
+            continue;
+        }
         if (token === "--timeout" || token === "-t") {
             const next = tokens[++i];
             if (!next) return { error: "Missing duration after --timeout." };
@@ -445,7 +454,7 @@ function parseFeynmanWaitForOptions(optionsText) {
     if (timeoutMs > FEYNMAN_WAIT_MAX_MS) {
         return { error: "Wait timeout is too long. Use 7 days or less." };
     }
-    return { condition, everyMs, timeoutMs, reviewEveryMs, reviewPrompt, persist, persistId, background, onReady };
+    return { condition, everyMs, timeoutMs, reviewEveryMs, reviewPrompt, persist, persistId, background, onReady, verbose };
 }
 
 function parseFeynmanWaitForCommand(text) {
@@ -509,10 +518,9 @@ function runFeynmanWaitCondition(command, cwd) {
 }
 
 function buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result) {
-    const elapsed = formatFeynmanWaitDuration(Date.now() - startedAt);
     const reason = result.timedOut ? "condition command timed out" : "exit " + (result.exitCode ?? "unknown");
     const lines = [
-        "A deferred /wait-for loop has been polling for " + elapsed + " and needs a health check.",
+        "Run a brief health review for this deferred /wait-for task.",
         "Condition: " + parsed.condition,
         "Polling interval: " + formatFeynmanWaitDuration(parsed.everyMs),
         "Deadline: " + new Date(deadline).toLocaleString(),
@@ -677,7 +685,7 @@ async function handleFeynmanWaitForCommand(mode, text) {
         const reason = result.timedOut ? "condition command timed out" : \`exit \${result.exitCode ?? "unknown"}\`;
         const output = result.output ? \` Output: \${result.output}\` : "";
         if (nextReviewAt && now >= nextReviewAt) {
-            mode.showStatus(\`Reviewing wait health after \${formatFeynmanWaitDuration(now - startedAt)}.\${output}\`);
+            mode.showStatus(\`Running scheduled wait health review.\${output}\`);
             mode.flushPendingBashComponents();
             await mode.session.prompt(buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result));
             nextReviewAt = Date.now() + parsed.reviewEveryMs;
@@ -700,7 +708,9 @@ async function handleFeynmanWaitForCommand(mode, text) {
                 nextReviewAt: nextReviewAt ? new Date(nextReviewAt).toISOString() : undefined,
             });
         }
-        mode.showStatus(\`Condition not met on attempt \${attempt} (\${reason}). Next check in \${formatFeynmanWaitDuration(delay)}.\${output}\`);
+        if (parsed.verbose) {
+            mode.showStatus(\`Condition not met on attempt \${attempt} (\${reason}). Next check in \${formatFeynmanWaitDuration(delay)}.\${output}\`);
+        }
         await feynmanSleep(delay);
     }
     mode.showWarning(\`Timed out waiting for condition after \${formatFeynmanWaitDuration(parsed.timeoutMs)}: \${parsed.condition}\`);
@@ -981,6 +991,7 @@ function parseFeynmanWaitForOptions(optionsText) {
     let persistId;
     let background = false;
     let onReady;
+    let verbose = false;
     let timeoutMs;
     const positional = [];
     for (let i = 0; i < tokens.length; i++) {
@@ -1043,6 +1054,14 @@ function parseFeynmanWaitForOptions(optionsText) {
             persist = true;
             continue;
         }
+        if (token === "--verbose" || token === "-v") {
+            verbose = true;
+            continue;
+        }
+        if (token === "--quiet" || token === "-q") {
+            verbose = false;
+            continue;
+        }
         if (token === "--timeout" || token === "-t") {
             const next = tokens[++i];
             if (!next) return { error: "Missing duration after --timeout." };
@@ -1065,7 +1084,7 @@ function parseFeynmanWaitForOptions(optionsText) {
     if (timeoutMs > FEYNMAN_WAIT_MAX_MS) {
         return { error: "Wait timeout is too long. Use 7 days or less." };
     }
-    return { condition, everyMs, timeoutMs, reviewEveryMs, reviewPrompt, persist, persistId, background, onReady };
+    return { condition, everyMs, timeoutMs, reviewEveryMs, reviewPrompt, persist, persistId, background, onReady, verbose };
 }
 
 function parseFeynmanWaitForCommand(text) {
@@ -1129,10 +1148,9 @@ function runFeynmanWaitCondition(command, cwd) {
 }
 
 function buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result) {
-    const elapsed = formatFeynmanWaitDuration(Date.now() - startedAt);
     const reason = result.timedOut ? "condition command timed out" : "exit " + (result.exitCode ?? "unknown");
     const lines = [
-        "A deferred /wait-for loop has been polling for " + elapsed + " and needs a health check.",
+        "Run a brief health review for this deferred /wait-for task.",
         "Condition: " + parsed.condition,
         "Polling interval: " + formatFeynmanWaitDuration(parsed.everyMs),
         "Deadline: " + new Date(deadline).toLocaleString(),
@@ -1235,7 +1253,7 @@ async function handleFeynmanWaitForCommand(mode, text) {
         const reason = result.timedOut ? "condition command timed out" : \`exit \${result.exitCode ?? "unknown"}\`;
         const output = result.output ? \` Output: \${result.output}\` : "";
         if (nextReviewAt && now >= nextReviewAt) {
-            mode.showStatus(\`Reviewing wait health after \${formatFeynmanWaitDuration(now - startedAt)}.\${output}\`);
+            mode.showStatus(\`Running scheduled wait health review.\${output}\`);
             mode.flushPendingBashComponents();
             await mode.session.prompt(buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result));
             nextReviewAt = Date.now() + parsed.reviewEveryMs;
@@ -1258,7 +1276,9 @@ async function handleFeynmanWaitForCommand(mode, text) {
                 nextReviewAt: nextReviewAt ? new Date(nextReviewAt).toISOString() : undefined,
             });
         }
-        mode.showStatus(\`Condition not met on attempt \${attempt} (\${reason}). Next check in \${formatFeynmanWaitDuration(delay)}.\${output}\`);
+        if (parsed.verbose) {
+            mode.showStatus(\`Condition not met on attempt \${attempt} (\${reason}). Next check in \${formatFeynmanWaitDuration(delay)}.\${output}\`);
+        }
         await feynmanWaitSleep(delay);
     }
     mode.showWarning(\`Timed out waiting for condition after \${formatFeynmanWaitDuration(parsed.timeoutMs)}: \${parsed.condition}\`);
