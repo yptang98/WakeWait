@@ -21,7 +21,7 @@ function readManifest() {
 
 function removeSkillCopies() {
 	const codexSkills = join(codexHome, "skills");
-	for (const skill of ["auto-sleep", "deferred-wait"]) {
+	for (const skill of ["wakewait", "auto-sleep", "deferred-wait"]) {
 		const target = join(codexSkills, skill);
 		if (existsSync(join(target, ".wakewait-managed"))) {
 			rmSync(target, { recursive: true, force: true });

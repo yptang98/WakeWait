@@ -231,6 +231,7 @@ async function sleepCommand(argv) {
 		kind: "sleep",
 		status: "running",
 		cwd,
+		startedAt: new Date().toISOString(),
 		wakeAt: options.wakeAt.toISOString(),
 		deadlineAt: options.wakeAt.toISOString(),
 		prompt: options.prompt || undefined,

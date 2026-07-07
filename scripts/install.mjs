@@ -50,6 +50,13 @@ function copyManagedSkill(skillName, targetRoot, manifest) {
 	manifest.installedPaths.push(target);
 }
 
+function removeManagedSkill(skillName, targetRoot) {
+	const target = join(targetRoot, skillName);
+	if (existsSync(join(target, ".wakewait-managed"))) {
+		rmSync(target, { recursive: true, force: true });
+	}
+}
+
 function npmRootGlobal() {
 	const result = spawnSync("npm", ["root", "-g"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
 	return result.status === 0 ? result.stdout.trim() : "";
@@ -131,8 +138,9 @@ const binDir = installHelperBin(manifest);
 if (options.installCodexSkills) {
 	const codexSkills = join(codexHome, "skills");
 	mkdirSync(codexSkills, { recursive: true });
-	copyManagedSkill("auto-sleep", codexSkills, manifest);
-	copyManagedSkill("deferred-wait", codexSkills, manifest);
+	removeManagedSkill("auto-sleep", codexSkills);
+	removeManagedSkill("deferred-wait", codexSkills);
+	copyManagedSkill("wakewait", codexSkills, manifest);
 	log(`installed Codex skills to ${codexSkills}`);
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "1.0.3",
-  "description": "WakeWait: independent auto sleep and long waits for agent CLIs",
+  "version": "1.0.4",
+  "description": "WakeWait: efficient local waiting for agent CLIs",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -15,7 +15,7 @@
   },
   "keywords": [
     "wakewait",
-    "auto-sleep",
+    "local-wait",
     "long-waits",
     "agent-cli",
     "codex-plugin",

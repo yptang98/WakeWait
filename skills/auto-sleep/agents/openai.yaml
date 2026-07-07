@@ -1,4 +1,0 @@
-interface:
-  display_name: "Auto Sleep"
-  short_description: "Automatically choose native sleep or WakeWait"
-  default_prompt: "Use $auto-sleep to wait or defer work with the lightest mechanism: native shell sleep for simple waits, WakeWait for background or rule-based waits."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "WakeWait"
+  short_description: "Wait locally with native sleep or fixed rules"
+  default_prompt: "Use $wakewait to wait efficiently with native shell sleep for simple pauses and deterministic WakeWait rules for persisted or background waits."

@@ -4,11 +4,23 @@
 
 # WakeWait
 
-Independent auto sleep and long waits for agent CLIs.
+Efficient local waiting for agent CLIs.
 
-WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It sleeps locally, polls simple deterministic rules, persists wait state, and avoids calling the model during the wait loop.
+WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It uses native shell sleep for simple pauses, records local state for interrupted waits, polls deterministic rules for `wait-for`, and avoids calling the model during the wait loop.
 
-`v1` is a standalone CLI. Pi slash-command support is optional and can be patched later with `wakewait patch`.
+WakeWait is not an intelligent scheduler. It is a small local waiting layer plus one Codex skill that helps the agent choose simple wait intervals.
+
+## CLI Purpose
+
+The `wakewait` CLI exists for cases where plain foreground sleep is not enough:
+
+- Record `startedAt`, `wakeAt`, and task state so an interrupted session can check elapsed/remaining time later.
+- Keep a background local wait running after the CLI command returns.
+- Poll a fixed rule such as file exists, file contains text, or command exits 0.
+- Run fixed log health scans without model calls.
+- Expose `wakewait status` and `wakewait cancel`.
+
+The core is still simple: local sleep plus local if/else checks. The skill may advise shorter checks early and longer checks after a job looks stable, but that policy stays in the agent, not in the CLI.
 
 ## One-Click Install
 
@@ -17,7 +29,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify `wakewait status` and `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example.
+Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify `wakewait status` and `npm run check`, then show me one native shell sleep example and one `wakewait wait-for` example.
 ```
 
 Codex can clone the repo, run the installer, install the WakeWait skills, verify the CLI, and report the commands you can use.
@@ -42,7 +54,8 @@ The installer:
 
 - installs helper files under `~/.wakewait`
 - creates `wakewait` and `pi-wait-patch` launchers under `~/.wakewait/bin`
-- installs `auto-sleep` and `deferred-wait` into `~/.codex/skills`
+- installs the `wakewait` skill into `~/.codex/skills`
+- removes older WakeWait-managed legacy skill copies if present
 - optionally patches detected Pi coding-agent runtimes with `/sleep` and `/wait-for`
 - creates backups so uninstall can restore patched runtime files
 
@@ -58,7 +71,7 @@ wakewait status
 
 Sleep for a fixed time:
 
-For a short foreground wait, just use the native shell. This is the most comfortable auto-sleep path.
+For a short foreground wait, just use the native shell. This is the most comfortable native wait path.
 
 Windows PowerShell:
 
@@ -158,8 +171,7 @@ WakeWait is packaged as a Codex-style plugin and standalone CLI:
 
 ```text
 .codex-plugin/plugin.json
-skills/auto-sleep
-skills/deferred-wait
+skills/wakewait
 scripts/wakewait.mjs
 scripts/patch-pi-wait.mjs
 scripts/install.*
@@ -175,7 +187,7 @@ scripts/uninstall.*
 | `Long Waits`-style skills | Good model policy for deciding when to wait | Depends on the host runtime for actual scheduling and recovery |
 | `Execution Timer`-style MCP tools | Reusable across clients and callable as tools | Adds a service and may not know the local agent session, resume prompt, or project wait state |
 | Cron or watchdog scripts | Durable production automation | Separate from the chat workflow; prompts and recovery must be wired manually |
-| WakeWait v1 | Independent CLI, Codex skills, local sleep, deterministic rule polling, persisted state, status/cancel, fixed health rules, optional background worker, and optional slash-command patching | Requires Node.js; model wake-up happens only through final `--on-ready` or host integration |
+| WakeWait | One skill plus a local CLI: native sleep guidance, persisted state, deterministic rule polling, status/cancel, fixed health rules, optional background worker, and optional slash-command patching | Requires Node.js for the CLI; interval choice remains the agent's responsibility |
 
 ## License
 
