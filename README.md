@@ -6,7 +6,7 @@
 
 Low-token shell waiting for Codex.
 
-WakeWait v2 is a skill plus bundled shell scripts for deterministic readiness checks. Plain fixed-duration delays should stay native and avoid loading WakeWait at all.
+WakeWait v2 is a tiny skill plus bundled shell scripts. It routes plain duration waits to native shell sleep, and uses scripts only for deterministic file/text/command readiness checks.
 
 ## Commands
 
@@ -49,21 +49,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README, run the correct installer for my OS, verify the wakewait skill and bundled scripts were installed into my global Codex skills root, then show me one sleep and one wait-file example.
-```
-
-Manual one-line install:
-
-Windows PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/yptang98/WakeWait/main/scripts/install.ps1 | iex
-```
-
-macOS / Linux:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/yptang98/WakeWait/main/scripts/install.sh | sh
+Use the README and repository scripts to install it for my OS. Verify the wakewait skill and bundled scripts were installed into my global Codex skills root. After install, future wait, sleep, pause, check-later, training, download, and evaluation waits should prefer WakeWait's low-token routing: native shell sleep for plain duration waits, bundled scripts for file/text/command readiness. Keep the loaded skill context small.
 ```
 
 The installer copies `skills/wakewait` into detected global Codex skill roots such as `CODEX_HOME/skills`, `~/.codex/skills`, or an existing `D:\codex\skills` on Windows.
@@ -71,23 +57,17 @@ The installer copies `skills/wakewait` into detected global Codex skill roots su
 ## Design
 
 - Plain fixed-duration delay stays native: `Start-Sleep` or `sleep`, followed by a timestamp.
-- WakeWait does not try to intercept plain fixed-duration delays; loading any skill has input-token cost.
+- The skill body stays tiny so sleep/wait association does not add much context.
 - Shell scripts do deterministic rule waits: wait-file, wait-contains, wait-command.
 - Output stays quiet: ready/timeout lines for rule waits, no per-poll chatter.
 - No Node runtime, background daemon, model polling loop, or persistent state.
 
 ## Uninstall
 
-Windows PowerShell:
+Give Codex this prompt:
 
-```powershell
-& "$HOME\.wakewait\scripts\uninstall.ps1"
-```
-
-macOS / Linux:
-
-```bash
-sh "$HOME/.wakewait/scripts/uninstall.sh"
+```text
+Uninstall WakeWait from my global Codex skills roots using the uninstall script installed by WakeWait. Verify the wakewait skill folder is gone.
 ```
 
 ## License

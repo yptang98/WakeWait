@@ -1,4 +1,4 @@
 interface:
   display_name: "WakeWait"
-  short_description: "Deterministic rule waits"
-  default_prompt: "Use $wakewait for bundled shell-script file, text, or command readiness waits without model polling."
+  short_description: "Low-token wait/sleep routing"
+  default_prompt: "Use $wakewait for low-token wait/sleep routing: native shell sleep for duration waits, bundled scripts for file/text/command readiness."

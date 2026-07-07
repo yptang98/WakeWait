@@ -1,20 +1,20 @@
 ---
 name: wakewait
-description: Low-token deterministic wait skill for Codex. Use for file, text, or command readiness checks during training, downloads, evaluations, or queued work. Prefer bundled scripts over model polling, Python wrappers, custom CLIs, or ad hoc loops.
+description: Low-token wait/sleep router for Codex. Use when asked to wait, sleep, pause, check later, or wait for training/download/evaluation readiness. Plain duration waits use native shell sleep; file/text/command readiness uses bundled WakeWait scripts. No model polling.
 ---
 
 # WakeWait
 
-Use WakeWait only for rule waits.
+Use the cheapest deterministic path.
 
-Plain fixed-duration delay, if this skill is already loaded:
+Plain duration wait:
 
 - PowerShell: `Start-Sleep -Seconds <n>; Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'`
 - POSIX: `sleep <n>; date '+%Y-%m-%d %H:%M:%S %z'`
 
-Rule-wait scripts:
+Rule wait:
 
 - PowerShell: `$HOME\.codex\skills\wakewait\scripts\wakewait.ps1`
 - POSIX: `$HOME/.codex/skills/wakewait/scripts/wakewait.sh`
 
-Actions: `wait-file`, `wait-contains`, `wait-command`. No model polling. No per-poll progress.
+Actions: `wait-file`, `wait-contains`, `wait-command`. No model polling or progress chatter.
