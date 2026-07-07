@@ -1,6 +1,6 @@
 ---
 name: deferred-wait
-description: Defer long-running work with WakeWait's independent local sleep, wait-for-condition, persisted status/cancel, optional background recovery, and periodic health-review flows. Use when waiting for training, evaluation, downloads, uploads, queues, remote jobs, checkpoint creation, dataset preparation, file creation, command success, or repeated status polling would otherwise keep the model active.
+description: Defer long-running work with WakeWait's independent local sleep, deterministic wait-for rules, persisted status/cancel, optional background recovery, and fixed log health-rule scans. Use when waiting for training, evaluation, downloads, uploads, queues, remote jobs, checkpoint creation, dataset preparation, file creation, command success, or repeated status polling would otherwise keep the model active or pollute context.
 ---
 
 # Deferred Wait
@@ -8,7 +8,7 @@ description: Defer long-running work with WakeWait's independent local sleep, wa
 Use WakeWait when the useful next step is time passing or a condition becoming true rather than more reasoning. WakeWait is a standalone local CLI. It provides:
 
 - `wakewait sleep` for timed waits.
-- `wakewait wait-for` for condition polling.
+- `wakewait wait-for` for deterministic file, contains-text, or shell-exit rules.
 - `wakewait status` and `wakewait cancel` for persisted wait state.
 - `wakewait patch` as an optional Pi runtime integration that can add `/sleep` and `/wait-for` slash commands.
 
@@ -64,37 +64,38 @@ Choose a duration from the evidence:
 
 ## Conditional Wait
 
-Use this only when a concrete condition can be checked. By default, repeated failed polling attempts should stay quiet; use `--verbose` only when the user explicitly wants progress messages for each poll.
+Use this only when a concrete rule can be checked. By default, repeated failed polling attempts stay quiet and do not call the model.
 
 Use a host slash command if available:
 
 ```text
-/wait-for --condition "<shell command>" --every <duration> --timeout <duration> [--persist] [--review-every <duration>] [--review "<health-check prompt>"] then <success prompt> else <timeout prompt>
+/wait-for --condition "<shell command>" --every <duration> --timeout <duration> [--persist] then <success prompt> else <timeout prompt>
 ```
 
 Otherwise use WakeWait:
 
 ```bash
-wakewait wait-for --condition "<shell command>" --every <duration> --timeout <duration> --background --review-every 30m --review "<health-check prompt>" --on-ready "<resume command>"
+wakewait wait-for (--file <path> | --contains <path> <text> | --condition <command>) --every <duration> --timeout <duration> --background --on-ready "<resume command>"
 ```
 
 Examples:
 
 ```bash
-wakewait wait-for --condition "python -c \"from pathlib import Path; raise SystemExit(0 if Path('outputs/done.json').exists() else 1)\"" --every 2m --timeout 1h --background --on-ready "codex \"read outputs/done.json and summarize the result\""
-wakewait wait-for --condition "python scripts/check_queue_empty.py" --every 10m --timeout 6h --background --on-ready "codex \"start the deferred eval job\"" --on-review "codex \"check queue health and report errors only\""
+wakewait wait-for --file outputs/done.json --every 2m --timeout 1h --background --on-ready "codex \"read outputs/done.json and summarize the result\""
+wakewait wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
+wakewait wait-for --condition "python scripts/check_queue_empty.py" --every 10m --timeout 6h --background --on-ready "codex \"start the deferred eval job\""
 ```
 
 Condition rules:
 
-- The condition succeeds when the shell command exits with code 0.
+- `--file` succeeds when the path exists.
+- `--contains` succeeds when the file contains the fixed text.
+- `--condition` succeeds when the shell command exits with code 0.
 - Always include `--timeout`; do not poll forever.
 - Use `--every` values that match the expected cadence. Avoid busy polling.
-- Add `--verbose` only when repeated "condition not met" status is actually useful.
-- For waits longer than about 30 minutes, keep the default health review or set `--review-every` explicitly.
-- Use `--review` to record which logs, tmux sessions, queues, or metrics should be inspected.
-- Use `--on-review "<command>"` only when an external command should run during background health reviews.
-- Use `--review-every off` only when the condition is low-risk and intermediate failures do not need diagnosis.
+- Prefer `--file` and `--contains` over shell commands when they express the rule.
+- Do not use model-based periodic reviews; they increase cost and pollute context.
+- Use `--health-log <path>` for fixed built-in failure scans while waiting.
 - Quote multi-word conditions.
 - Conditions run in the local shell. For portable file checks, prefer short Python one-liners over POSIX-only commands when the user's machine may be Windows.
 
@@ -110,7 +111,7 @@ wakewait cancel <id>
 wakewait cancel all
 ```
 
-If a task is overdue or marked `review due` after an interruption, inspect the condition/logs instead of blindly sleeping again. A live wait loop exits when it next observes that its task was cancelled.
+If a task is overdue or marked `health_failed` after an interruption, inspect the condition/logs instead of blindly sleeping again. A live wait loop exits when it next observes that its task was cancelled.
 
 ## Resume Prompt
 

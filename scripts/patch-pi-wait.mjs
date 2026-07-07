@@ -13,6 +13,15 @@ const WAIT_STATE_DIR = ".codex-wait";
 const WAIT_STATE_FILE = "tasks.json";
 const WAIT_CONDITION_TIMEOUT_MS = 30 * 1000;
 const WAIT_OUTPUT_LIMIT = 4000;
+const HEALTH_OUTPUT_LIMIT = 64 * 1024;
+const HEALTH_RULES = [
+	{ id: "cuda-oom", pattern: /\bCUDA out of memory\b/i },
+	{ id: "out-of-memory", pattern: /\bout of memory\b|\bOOM\b/i },
+	{ id: "nan-loss", pattern: /\b(?:loss|grad|gradient)[^\n]{0,80}\b(?:nan|inf)\b|\b(?:nan|inf)[^\n]{0,80}\b(?:loss|grad|gradient)\b/i },
+	{ id: "traceback", pattern: /\bTraceback \(most recent call last\):/i },
+	{ id: "runtime-error", pattern: /\b(?:RuntimeError|Exception|ERROR|Error):\b/i },
+	{ id: "process-killed", pattern: /\b(?:Killed|Segmentation fault|core dumped)\b/i },
+];
 
 function unique(values) {
 	return Array.from(new Set(values.filter(Boolean).map((value) => resolve(value))));
@@ -155,17 +164,17 @@ export function listPiWaitTasks(statePath = defaultPiWaitStatePath(), now = Date
 	return Object.values(state.tasks).map((task) => {
 		const deadlineMs = Date.parse(task.deadlineAt ?? task.wakeAt ?? "");
 		const nextCheckMs = Date.parse(task.nextCheckAt ?? "");
-		const reviewEveryMs = Number(task.reviewEveryMs) || 0;
-		const reviewBaseMs = Date.parse(task.lastReviewAt ?? task.startedAt ?? task.createdAt ?? "");
-		const nextReviewMs = reviewEveryMs > 0 && Number.isFinite(reviewBaseMs) ? reviewBaseMs + reviewEveryMs : undefined;
+		const healthEveryMs = Number(task.healthEveryMs ?? task.reviewEveryMs) || 0;
+		const healthBaseMs = Date.parse(task.lastHealthCheckAt ?? task.startedAt ?? task.createdAt ?? "");
+		const nextHealthMs = healthEveryMs > 0 && Number.isFinite(healthBaseMs) ? healthBaseMs + healthEveryMs : undefined;
 		const status = taskStatus(task, now);
 		return {
 			...task,
 			status,
 			remainingMs: Number.isFinite(deadlineMs) ? deadlineMs - now : undefined,
 			nextCheckInMs: Number.isFinite(nextCheckMs) ? nextCheckMs - now : undefined,
-			nextReviewInMs: nextReviewMs === undefined ? undefined : nextReviewMs - now,
-			reviewDue: nextReviewMs !== undefined && nextReviewMs <= now && (status === "running" || status === "background"),
+			nextHealthInMs: nextHealthMs === undefined ? undefined : nextHealthMs - now,
+			healthDue: nextHealthMs !== undefined && nextHealthMs <= now && (status === "running" || status === "background"),
 		};
 	}).sort((left, right) => String(left.updatedAt ?? "").localeCompare(String(right.updatedAt ?? "")));
 }
@@ -246,6 +255,60 @@ function runCondition(command, cwd) {
 	});
 }
 
+function tailText(path) {
+	try {
+		const text = readFileSync(path, "utf8");
+		return text.length > HEALTH_OUTPUT_LIMIT ? text.slice(text.length - HEALTH_OUTPUT_LIMIT) : text;
+	} catch {
+		return "";
+	}
+}
+
+function firstMatchingLine(text, pattern) {
+	return text.split(/\r?\n/).find((line) => pattern.test(line)) || "";
+}
+
+function checkHealthLogs(task) {
+	const healthLogs = Array.isArray(task.healthLogs)
+		? task.healthLogs
+		: (task.healthLog ? [task.healthLog] : []);
+	for (const logPath of healthLogs.filter(Boolean)) {
+		const absolutePath = resolve(task.cwd || process.cwd(), String(logPath));
+		if (!existsSync(absolutePath)) continue;
+		const text = tailText(absolutePath);
+		for (const rule of HEALTH_RULES) {
+			rule.pattern.lastIndex = 0;
+			if (rule.pattern.test(text)) {
+				return {
+					ok: false,
+					rule: rule.id,
+					path: absolutePath,
+					line: firstMatchingLine(text, rule.pattern).trim().slice(0, 500),
+				};
+			}
+		}
+	}
+	return { ok: true };
+}
+
+async function runWaitRule(task) {
+	const cwd = task.cwd || process.cwd();
+	if (task.file) {
+		const path = resolve(cwd, String(task.file));
+		return { ok: existsSync(path), output: path, exitCode: existsSync(path) ? 0 : 1 };
+	}
+	if (task.contains?.path && task.contains?.text !== undefined) {
+		const path = resolve(cwd, String(task.contains.path));
+		const text = existsSync(path) ? tailText(path) : "";
+		const needle = String(task.contains.text);
+		return { ok: text.includes(needle), output: path, exitCode: text.includes(needle) ? 0 : 1 };
+	}
+	if (task.condition) {
+		return runCondition(task.condition, cwd);
+	}
+	return { ok: false, output: "no wait rule configured", exitCode: 2 };
+}
+
 function launchDetached(command, args, options = {}) {
 	const child = spawn(command, args, {
 		cwd: options.cwd,
@@ -281,26 +344,6 @@ function launchReadyAction(task, outcome) {
 		}
 	}
 	return undefined;
-}
-
-function launchReviewAction(task, result, statePath) {
-	if (typeof task.onReview !== "string" || !task.onReview.trim()) {
-		return undefined;
-	}
-	const env = {
-		...process.env,
-		PI_WAIT_TASK_ID: task.id ?? "",
-		PI_WAIT_OUTCOME: "review",
-		PI_WAIT_STATE_PATH: statePath,
-		PI_WAIT_LAST_EXIT_CODE: result.exitCode === undefined ? "" : String(result.exitCode),
-		PI_WAIT_LAST_OUTPUT: result.output ?? "",
-		WAKEWAIT_TASK_ID: task.id ?? "",
-		WAKEWAIT_OUTCOME: "review",
-		WAKEWAIT_STATE_PATH: statePath,
-		WAKEWAIT_LAST_EXIT_CODE: result.exitCode === undefined ? "" : String(result.exitCode),
-		WAKEWAIT_LAST_OUTPUT: result.output ?? "",
-	};
-	return launchDetached(task.onReview, [], { cwd: task.cwd, env, shell: true });
 }
 
 async function markReadyAndLaunch(statePath, id, outcome, patch = {}) {
@@ -348,7 +391,7 @@ export async function runPiWaitWorker(id, options = {}) {
 				await markReadyAndLaunch(statePath, id, "timed_out");
 				return;
 			}
-			const result = await runCondition(task.condition, task.cwd || process.cwd());
+			const result = await runWaitRule(task);
 			if (result.ok) {
 				await markReadyAndLaunch(statePath, id, "satisfied", {
 					lastOutput: result.output,
@@ -356,10 +399,19 @@ export async function runPiWaitWorker(id, options = {}) {
 				});
 				return;
 			}
-			const reviewEveryMs = Number(task.reviewEveryMs) || 0;
-			const reviewBaseMs = Date.parse(task.lastReviewAt ?? task.startedAt ?? task.createdAt ?? "");
-			const reviewDue = reviewEveryMs > 0 && Number.isFinite(reviewBaseMs) && Date.now() - reviewBaseMs >= reviewEveryMs;
-			const reviewPid = reviewDue ? launchReviewAction({ ...task, statePath }, result, statePath) : undefined;
+			const healthEveryMs = Number(task.healthEveryMs ?? task.reviewEveryMs) || 0;
+			const healthBaseMs = Date.parse(task.lastHealthCheckAt ?? task.startedAt ?? task.createdAt ?? "");
+			const healthDue = healthEveryMs > 0 && Number.isFinite(healthBaseMs) && Date.now() - healthBaseMs >= healthEveryMs;
+			const healthResult = healthDue ? checkHealthLogs(task) : { ok: true };
+			if (!healthResult.ok) {
+				await markReadyAndLaunch(statePath, id, "health_failed", {
+					lastOutput: result.output,
+					lastAttemptAt: new Date().toISOString(),
+					lastHealthCheckAt: new Date().toISOString(),
+					healthIssue: healthResult,
+				});
+				return;
+			}
 			const delay = Math.max(1000, Math.min(
 				Number(task.everyMs) || 60 * 1000,
 				Number.isFinite(deadlineMs) ? deadlineMs - Date.now() : 60 * 1000,
@@ -371,9 +423,8 @@ export async function runPiWaitWorker(id, options = {}) {
 				lastTimedOut: result.timedOut,
 				lastOutput: result.output,
 				nextCheckAt: new Date(Date.now() + delay).toISOString(),
-				lastReviewAt: reviewPid ? new Date().toISOString() : task.lastReviewAt,
-				reviewPid: reviewPid ?? task.reviewPid,
-				reviewStartedAt: reviewPid ? new Date().toISOString() : task.reviewStartedAt,
+				lastHealthCheckAt: healthDue ? new Date().toISOString() : task.lastHealthCheckAt,
+				healthStatus: healthDue ? "ok" : task.healthStatus,
 			});
 			await sleep(delay);
 			continue;
@@ -400,11 +451,17 @@ function printWaitStatus(options) {
 			: task.status === "running"
 				? `remaining ${formatDuration(task.remainingMs ?? 0)}`
 				: task.completedAt || task.cancelledAt || task.updatedAt || "";
-		const label = task.kind === "sleep" ? (task.wakeAt || task.deadlineAt || "") : (task.condition || "");
+		const label = task.kind === "sleep"
+			? (task.wakeAt || task.deadlineAt || "")
+			: (task.file || (task.contains ? `${task.contains.path} contains ${JSON.stringify(task.contains.text)}` : task.condition || ""));
 		console.log(`${task.id} [${task.status}] ${timing}`);
 		if (label) console.log(`  ${label}`);
 		if (task.nextCheckInMs !== undefined && task.status === "running") {
 			console.log(`  next check in ${formatDuration(task.nextCheckInMs)}`);
+		}
+		if (task.healthIssue) {
+			console.log(`  health issue: ${task.healthIssue.rule} ${task.healthIssue.path}`);
+			if (task.healthIssue.line) console.log(`  ${task.healthIssue.line}`);
 		}
 	}
 }

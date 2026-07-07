@@ -20,7 +20,7 @@ const repoRoot = resolve(dirname(scriptPath), "..");
 const patchScriptPath = resolve(repoRoot, "scripts", "patch-pi-wait.mjs");
 const MAX_WAIT_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_WAIT_EVERY_MS = 60 * 1000;
-const DEFAULT_REVIEW_EVERY_MS = 30 * 60 * 1000;
+const DEFAULT_HEALTH_EVERY_MS = 30 * 60 * 1000;
 
 function formatDuration(ms) {
 	const sign = ms < 0 ? "-" : "";
@@ -123,11 +123,18 @@ function parseWaitForArgs(argv) {
 	const options = parseCommon(argv);
 	options.everyMs = DEFAULT_WAIT_EVERY_MS;
 	options.timeoutMs = undefined;
-	options.reviewEveryMs = DEFAULT_REVIEW_EVERY_MS;
+	options.healthLogs = [];
+	options.healthEveryMs = DEFAULT_HEALTH_EVERY_MS;
 	for (let i = 0; i < options.rest.length; i += 1) {
 		const arg = options.rest[i];
 		if (arg === "--condition") {
 			options.condition = options.rest[++i];
+		} else if (arg === "--file") {
+			options.file = options.rest[++i];
+		} else if (arg === "--contains") {
+			options.containsPath = options.rest[++i];
+			options.containsText = options.rest[++i];
+			if (!options.containsPath || options.containsText === undefined) throw new Error("--contains expects <path> <text>.");
 		} else if (arg === "--every") {
 			const parsed = parseDuration(options.rest[++i]);
 			if (parsed === undefined) throw new Error("--every expects a duration such as 30s, 5m, or 1h.");
@@ -136,19 +143,21 @@ function parseWaitForArgs(argv) {
 			const parsed = parseDuration(options.rest[++i]);
 			if (parsed === undefined) throw new Error("--timeout expects a duration such as 30s, 5m, or 1h.");
 			options.timeoutMs = parsed;
-		} else if (arg === "--review-every") {
+		} else if (arg === "--health-every" || arg === "--review-every") {
 			const next = options.rest[++i];
 			if (String(next).toLowerCase() === "off") {
-				options.reviewEveryMs = 0;
+				options.healthEveryMs = 0;
 			} else {
 				const parsed = parseDuration(next);
-				if (parsed === undefined) throw new Error("--review-every expects a duration or off.");
-				options.reviewEveryMs = parsed;
+				if (parsed === undefined) throw new Error("--health-every expects a duration or off.");
+				options.healthEveryMs = parsed;
 			}
-		} else if (arg === "--review") {
-			options.review = options.rest[++i];
-		} else if (arg === "--on-review") {
-			options.onReview = options.rest[++i];
+		} else if (arg === "--health-log") {
+			const next = options.rest[++i];
+			if (!next) throw new Error("--health-log expects a path.");
+			options.healthLogs.push(next);
+		} else if (arg === "--review" || arg === "--on-review") {
+			i += 1;
 		} else if (arg === "then") {
 			const elseIndex = options.rest.findIndex((value, index) => index > i && value.toLowerCase() === "else");
 			const successEnd = elseIndex === -1 ? options.rest.length : elseIndex;
@@ -159,7 +168,8 @@ function parseWaitForArgs(argv) {
 			throw new Error(`Unexpected wait-for argument: ${arg}`);
 		}
 	}
-	if (!options.condition) throw new Error("wait-for requires --condition <shell command>.");
+	const ruleCount = [options.condition, options.file, options.containsPath].filter(Boolean).length;
+	if (ruleCount !== 1) throw new Error("wait-for requires exactly one rule: --file <path>, --contains <path> <text>, or --condition <shell command>.");
 	if (!options.timeoutMs) throw new Error("wait-for requires --timeout <duration>.");
 	if (options.timeoutMs > MAX_WAIT_MS) throw new Error("WakeWait caps a single wait at 7 days.");
 	return options;
@@ -243,10 +253,11 @@ async function waitForCommand(argv) {
 		status: "running",
 		cwd,
 		condition: options.condition,
+		file: options.file,
+		contains: options.containsPath ? { path: options.containsPath, text: options.containsText } : undefined,
 		everyMs: options.everyMs,
-		reviewEveryMs: options.reviewEveryMs,
-		review: options.review,
-		onReview: options.onReview,
+		healthEveryMs: options.healthLogs.length > 0 ? options.healthEveryMs : 0,
+		healthLogs: options.healthLogs,
 		deadlineAt: deadline.toISOString(),
 		successPrompt: options.successPrompt,
 		timeoutPrompt: options.timeoutPrompt,
@@ -254,9 +265,11 @@ async function waitForCommand(argv) {
 		createdAt: new Date().toISOString(),
 		startedAt: new Date().toISOString(),
 	};
-	console.log(`condition: ${options.condition}`);
+	if (options.file) console.log(`file: ${options.file}`);
+	else if (options.containsPath) console.log(`contains: ${options.containsPath} includes ${JSON.stringify(options.containsText)}`);
+	else console.log(`condition: ${options.condition}`);
 	console.log(`polling: every ${formatDuration(options.everyMs)} until ${deadline.toISOString()}`);
-	if (options.reviewEveryMs) console.log(`review due: every ${formatDuration(options.reviewEveryMs)}`);
+	if (task.healthEveryMs) console.log(`health rules: every ${formatDuration(task.healthEveryMs)} on ${options.healthLogs.join(", ")}`);
 	await runOrSchedule(task, options, statePath);
 }
 
@@ -276,11 +289,15 @@ function statusCommand(argv) {
 	for (const task of tasks) {
 		const active = task.status === "running" || task.status === "background" || task.status === "overdue";
 		const timing = active && task.remainingMs !== undefined ? `remaining ${formatDuration(task.remainingMs)}` : "";
-		console.log(`${task.id} [${task.status}] ${timing}`.trim());
+		const outcome = task.outcome ? ` (${task.outcome})` : "";
+		console.log(`${task.id} [${task.status}${outcome}] ${timing}`.trim());
 		if (task.kind === "wait-for" && task.condition) console.log(`  condition: ${task.condition}`);
+		if (task.kind === "wait-for" && task.file) console.log(`  file: ${task.file}`);
+		if (task.kind === "wait-for" && task.contains) console.log(`  contains: ${task.contains.path} includes ${JSON.stringify(task.contains.text)}`);
 		if (task.kind === "sleep" && task.wakeAt) console.log(`  wake: ${task.wakeAt}`);
 		if (active && task.nextCheckInMs !== undefined) console.log(`  next check in ${formatDuration(task.nextCheckInMs)}`);
-		if (task.reviewDue) console.log("  review due: inspect logs/status before continuing to wait");
+		if (task.healthDue) console.log("  health check due: fixed rules will run in the worker");
+		if (task.healthIssue) console.log(`  health issue: ${task.healthIssue.rule} ${task.healthIssue.path}`);
 	}
 }
 
@@ -327,7 +344,7 @@ function usage() {
 	return [
 		"Usage:",
 		"  wakewait sleep <30s|5m|2h|until HH:MM|date> [then prompt] [--background] [--on-ready <command>]",
-		"  wakewait wait-for --condition <command> --every <duration> --timeout <duration> [--background] [--review-every <duration|off>] [--on-review <command>]",
+		"  wakewait wait-for (--file <path> | --contains <path> <text> | --condition <command>) --every <duration> --timeout <duration> [--background] [--health-log <path>] [--health-every <duration|off>]",
 		"  wakewait status [--state <path>] [--json]",
 		"  wakewait cancel <id|all> [--state <path>]",
 		"  wakewait worker <id> [--state <path>]",

@@ -6,7 +6,7 @@
 
 Independent auto sleep and long waits for agent CLIs.
 
-WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It can sleep locally, poll a cheap condition, persist wait state, expose status/cancel commands, and optionally wake through a background command.
+WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It sleeps locally, polls simple deterministic rules, persists wait state, and avoids calling the model during the wait loop.
 
 `v1` is a standalone CLI. Pi slash-command support is optional and can be patched later with `wakewait patch`.
 
@@ -62,10 +62,22 @@ Sleep for a fixed time:
 wakewait sleep 30m --background --on-ready "codex \"check logs/train.log and summarize progress\""
 ```
 
-Wait for a condition:
+Wait for a file:
 
 ```bash
-wakewait wait-for --condition "python -c \"from pathlib import Path; raise SystemExit(0 if Path('outputs/done.json').exists() else 1)\"" --every 5m --timeout 6h --background --review-every 30m --review "check logs/train.log for OOM, CUDA errors, NaN loss, stalled progress, or missing checkpoints" --on-ready "codex \"read outputs/done.json and summarize metrics\""
+wakewait wait-for --file outputs/done.json --every 5m --timeout 6h --background --on-ready "codex \"read outputs/done.json and summarize metrics\""
+```
+
+Wait for a log rule:
+
+```bash
+wakewait wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
+```
+
+Run fixed health rules while waiting:
+
+```bash
+wakewait wait-for --file outputs/done.json --every 5m --timeout 6h --background --health-log logs/train.log
 ```
 
 Cancel one wait or all waits:
@@ -81,9 +93,11 @@ Useful flags:
 | --- | --- |
 | `--background` | Optional background worker that continues after the CLI command exits |
 | `--on-ready "<command>"` | Optional command to run after sleep wakes, a condition succeeds, or a timeout occurs |
-| `--review-every 30m` | Marks long polling tasks for health review; default is `30m` for `wait-for` |
-| `--review "<prompt>"` | Records exactly which logs, sessions, hosts, and failure modes should be checked |
-| `--on-review "<command>"` | Optional command to run when a background poll reaches the review interval |
+| `--file <path>` | Succeed when a file exists |
+| `--contains <path> <text>` | Succeed when a file contains fixed text |
+| `--condition "<command>"` | Succeed when a shell command exits 0 |
+| `--health-log <path>` | Periodically scan a log with fixed built-in failure rules such as OOM, traceback, NaN/Inf loss, killed process |
+| `--health-every 30m` | Frequency for fixed health-rule scans when `--health-log` is set |
 | `--state <path>` | Store or inspect wait state somewhere other than `.codex-wait/tasks.json` |
 
 ## Optional Slash Commands
@@ -140,12 +154,12 @@ scripts/uninstall.*
 
 | Approach | Strength | Limit |
 | --- | --- | --- |
-| Python or shell `sleep` | Universal and predictable | Blocks the agent turn and has no resume prompt, persisted state, or health review |
+| Python or shell `sleep` | Universal and predictable | Blocks the agent turn and has no resume prompt or persisted state |
 | Timer-only skills | Easy fixed reminders | Usually cannot poll job-specific readiness conditions |
 | `Long Waits`-style skills | Good model policy for deciding when to wait | Depends on the host runtime for actual scheduling and recovery |
 | `Execution Timer`-style MCP tools | Reusable across clients and callable as tools | Adds a service and may not know the local agent session, resume prompt, or project wait state |
 | Cron or watchdog scripts | Durable production automation | Separate from the chat workflow; prompts and recovery must be wired manually |
-| WakeWait v1 | Independent CLI, Codex skills, local sleep, condition polling, persisted state, status/cancel, health reviews, optional background worker, and optional slash-command patching | Requires Node.js; true automatic model wake-up still depends on the `--on-ready` command or host integration |
+| WakeWait v1 | Independent CLI, Codex skills, local sleep, deterministic rule polling, persisted state, status/cancel, fixed health rules, optional background worker, and optional slash-command patching | Requires Node.js; model wake-up happens only through final `--on-ready` or host integration |
 
 ## License
 

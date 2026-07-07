@@ -1,4 +1,4 @@
 interface:
   display_name: "Deferred Wait"
-  short_description: "Pause or poll long work and resume later"
-  default_prompt: "Use $deferred-wait to sleep or wait for a condition with WakeWait while a training, download, queue, or long shell task runs."
+  short_description: "Pause or poll long work with fixed rules"
+  default_prompt: "Use $deferred-wait to sleep or wait with deterministic WakeWait rules while a training, download, queue, or long shell task runs."

@@ -520,7 +520,7 @@ function runFeynmanWaitCondition(command, cwd) {
 function buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result) {
     const reason = result.timedOut ? "condition command timed out" : "exit " + (result.exitCode ?? "unknown");
     const lines = [
-        "Run a brief health review for this deferred /wait-for task.",
+        "Run a fixed health-rule check for this deferred /wait-for task.",
         "Condition: " + parsed.condition,
         "Polling interval: " + formatFeynmanWaitDuration(parsed.everyMs),
         "Deadline: " + new Date(deadline).toLocaleString(),
@@ -614,7 +614,7 @@ async function handleFeynmanWaitForCommand(mode, text) {
     const deadline = startedAt + parsed.timeoutMs;
     const deadlineText = new Date(deadline).toLocaleString();
     let attempt = 0;
-    let nextReviewAt = parsed.reviewEveryMs ? startedAt + parsed.reviewEveryMs : undefined;
+    let nextReviewAt = undefined;
     const taskId = parsed.persist ? (parsed.persistId || makeFeynmanWaitTaskId("wait")) : undefined;
     if (taskId) {
         const statePath = upsertFeynmanWaitTask(cwd, {
@@ -651,8 +651,7 @@ async function handleFeynmanWaitForCommand(mode, text) {
             return;
         }
     }
-    const reviewText = parsed.reviewEveryMs ? \`, health review every \${formatFeynmanWaitDuration(parsed.reviewEveryMs)}\` : ", health reviews disabled";
-    mode.showStatus(\`Waiting for condition every \${formatFeynmanWaitDuration(parsed.everyMs)}\${reviewText} until \${deadlineText}: \${parsed.condition}\`);
+    mode.showStatus(\`Waiting for condition every \${formatFeynmanWaitDuration(parsed.everyMs)} until \${deadlineText}: \${parsed.condition}\`);
     while (Date.now() <= deadline) {
         if (taskId && getFeynmanWaitTask(cwd, taskId)?.status === "cancelled") {
             mode.showWarning("Persistent wait task " + taskId + " was cancelled.");
@@ -685,9 +684,6 @@ async function handleFeynmanWaitForCommand(mode, text) {
         const reason = result.timedOut ? "condition command timed out" : \`exit \${result.exitCode ?? "unknown"}\`;
         const output = result.output ? \` Output: \${result.output}\` : "";
         if (nextReviewAt && now >= nextReviewAt) {
-            mode.showStatus(\`Running scheduled wait health review.\${output}\`);
-            mode.flushPendingBashComponents();
-            await mode.session.prompt(buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result));
             nextReviewAt = Date.now() + parsed.reviewEveryMs;
         }
         const afterReviewNow = Date.now();
@@ -1150,7 +1146,7 @@ function runFeynmanWaitCondition(command, cwd) {
 function buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result) {
     const reason = result.timedOut ? "condition command timed out" : "exit " + (result.exitCode ?? "unknown");
     const lines = [
-        "Run a brief health review for this deferred /wait-for task.",
+        "Run a fixed health-rule check for this deferred /wait-for task.",
         "Condition: " + parsed.condition,
         "Polling interval: " + formatFeynmanWaitDuration(parsed.everyMs),
         "Deadline: " + new Date(deadline).toLocaleString(),
@@ -1182,7 +1178,7 @@ async function handleFeynmanWaitForCommand(mode, text) {
     const deadline = startedAt + parsed.timeoutMs;
     const deadlineText = new Date(deadline).toLocaleString();
     let attempt = 0;
-    let nextReviewAt = parsed.reviewEveryMs ? startedAt + parsed.reviewEveryMs : undefined;
+    let nextReviewAt = undefined;
     const taskId = parsed.persist ? (parsed.persistId || makeFeynmanWaitTaskId("wait")) : undefined;
     if (taskId) {
         const statePath = upsertFeynmanWaitTask(cwd, {
@@ -1219,8 +1215,7 @@ async function handleFeynmanWaitForCommand(mode, text) {
             return;
         }
     }
-    const reviewText = parsed.reviewEveryMs ? \`, health review every \${formatFeynmanWaitDuration(parsed.reviewEveryMs)}\` : ", health reviews disabled";
-    mode.showStatus(\`Waiting for condition every \${formatFeynmanWaitDuration(parsed.everyMs)}\${reviewText} until \${deadlineText}: \${parsed.condition}\`);
+    mode.showStatus(\`Waiting for condition every \${formatFeynmanWaitDuration(parsed.everyMs)} until \${deadlineText}: \${parsed.condition}\`);
     while (Date.now() <= deadline) {
         if (taskId && getFeynmanWaitTask(cwd, taskId)?.status === "cancelled") {
             mode.showWarning("Persistent wait task " + taskId + " was cancelled.");
@@ -1253,9 +1248,6 @@ async function handleFeynmanWaitForCommand(mode, text) {
         const reason = result.timedOut ? "condition command timed out" : \`exit \${result.exitCode ?? "unknown"}\`;
         const output = result.output ? \` Output: \${result.output}\` : "";
         if (nextReviewAt && now >= nextReviewAt) {
-            mode.showStatus(\`Running scheduled wait health review.\${output}\`);
-            mode.flushPendingBashComponents();
-            await mode.session.prompt(buildFeynmanWaitReviewPrompt(parsed, attempt, startedAt, deadline, result));
             nextReviewAt = Date.now() + parsed.reviewEveryMs;
         }
         const afterReviewNow = Date.now();
