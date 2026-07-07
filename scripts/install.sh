@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v1.0.8}"
+version="${WAKEWAIT_VERSION:-v1.0.9}"
 
 find_node() {
   if command -v node >/dev/null 2>&1; then

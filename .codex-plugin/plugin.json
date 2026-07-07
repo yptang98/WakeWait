@@ -1,6 +1,6 @@
 {
   "name": "wakewait",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Efficient local waiting for agent CLIs.",
   "author": {
     "name": "yptang98",
@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "WakeWait",
     "shortDescription": "Efficient local waiting for agent CLIs.",
-    "longDescription": "WakeWait provides a default Codex waiting skill and a small local CLI for efficient waiting: near-native local sleep with wall-clock state, persisted recovery for interrupted waits, deterministic file/text/command rules for wait-for, and fixed log health scans without model calls during the wait loop.",
+    "longDescription": "WakeWait provides a default Codex waiting skill and a small local CLI for efficient waiting: near-native local sleep with automatic wall-clock state, persisted recovery for interrupted waits, deterministic file/text/command rules for wait-for, and fixed log health scans without model calls during the wait loop.",
     "developerName": "yptang98",
     "category": "Productivity",
     "capabilities": ["Write", "Automation"],

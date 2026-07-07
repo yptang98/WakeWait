@@ -1,6 +1,6 @@
 {
   "name": "wakewait",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "WakeWait: efficient local waiting for agent CLIs",
   "license": "MIT",
   "type": "module",

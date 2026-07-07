@@ -9,7 +9,9 @@ Use WakeWait to make waiting cheap and quiet. The core idea is simple:
 
 - Treat WakeWait as the default for sleep/wait/poll tasks.
 - Use the installed WakeWait CLI for fixed time waits.
-- Before sleeping, record `startedAt`, `wakeAt`, and task state in `.codex-wait/tasks.json`.
+- Let the CLI automatically read local time, write task state, and start waiting.
+- Keep state per project by default in the current working directory's `.codex-wait/tasks.json`.
+- Clean completed sleep records by default after wake; use `--keep-record` only when debugging.
 - Sleep locally with a lightweight timer that behaves like native sleep and does not call the model.
 - For `wait-for`, loop locally over a fixed rule such as file exists, file contains text, or command exits 0.
 - Do not call the model during the wait loop. Only return to the model after the wait is done, timed out, cancelled, or a fixed health rule fails.
@@ -44,6 +46,8 @@ Prefer WakeWait when the task is about waiting:
 
 - Use WakeWait for "sleep 60 seconds", "wait 10 minutes", "check again later", and similar fixed waits.
 - Use WakeWait `wait-for` for file existence, log text, or command-success readiness checks.
+- Do not manually calculate or write `startedAt`; WakeWait CLI does that internally from the local machine clock.
+- Let each project use its own default `.codex-wait/tasks.json`; pass `--cwd <project>` when waiting on a different project.
 - Use direct shell `Start-Sleep`, `sleep`, or Python `time.sleep` only when the user explicitly asks for that bare native command or WakeWait is not installed.
 - Do not add WakeWait to the user `PATH`; call the installed launcher directly.
 
@@ -57,13 +61,19 @@ Use the WakeWait CLI for fixed foreground waits:
 & "$HOME\.wakewait\bin\wakewait.cmd" sleep 1h
 ```
 
+Completed sleep tasks are removed from the project state file by default. Add `--keep-record` only when the user needs to inspect the completed record later:
+
+```powershell
+& "$HOME\.wakewait\bin\wakewait.cmd" sleep 10m --keep-record
+```
+
 Use background mode only when the wait should continue after the command returns:
 
 ```powershell
 & "$HOME\.wakewait\bin\wakewait.cmd" sleep 30m --background --on-ready "<resume command>"
 ```
 
-WakeWait intentionally keeps sleep primitive: it writes state first, waits locally, and checks real wall-clock time later. If a one-hour wait is interrupted after 30 minutes and Codex restarts two hours later, `wakewait status` should report that the original target time has already passed.
+WakeWait intentionally keeps sleep primitive: the CLI reads the local clock, writes state, waits locally, and checks real wall-clock time later. If a one-hour wait is interrupted after 30 minutes and Codex restarts two hours later, `wakewait status` should report that the original target time has already passed.
 
 Check persisted sleep state:
 
@@ -130,5 +140,5 @@ Briefly state what will happen:
 
 - The job or task being waited on.
 - The WakeWait sleep duration or fixed wait rule.
-- Whether local state will be persisted.
+- The project directory if it is not the current working directory.
 - The timeout or next expected check.

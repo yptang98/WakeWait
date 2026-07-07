@@ -68,6 +68,18 @@ function parseWakeTime(parts, now = new Date()) {
 	return Number.isFinite(parsed.getTime()) ? parsed : undefined;
 }
 
+function makeTaskTiming(deadlineAt, now = new Date()) {
+	const startedAt = now.toISOString();
+	const deadlineMs = deadlineAt.getTime();
+	const durationMs = Math.max(0, deadlineMs - now.getTime());
+	return {
+		startedAt,
+		createdAt: startedAt,
+		deadlineAt: deadlineAt.toISOString(),
+		durationMs,
+	};
+}
+
 function makeTaskId(prefix) {
 	return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -98,6 +110,8 @@ function parseCommon(argv) {
 			options.foreground = true;
 		} else if (arg === "--json") {
 			options.json = true;
+		} else if (arg === "--keep-record") {
+			options.keepRecord = true;
 		} else {
 			options.rest.push(arg);
 		}
@@ -111,9 +125,10 @@ function parseSleepArgs(argv) {
 	if (thenIndex === -1) thenIndex = options.rest.length;
 	const scheduleParts = options.rest.slice(0, thenIndex);
 	const promptParts = options.rest.slice(thenIndex + 1);
-	const wakeAt = parseWakeTime(scheduleParts);
+	const now = new Date();
+	const wakeAt = parseWakeTime(scheduleParts, now);
 	if (!wakeAt) throw new Error("Usage: wakewait sleep <30s|5m|2h|until HH:MM|date> [then prompt]");
-	const delayMs = wakeAt.getTime() - Date.now();
+	const delayMs = wakeAt.getTime() - now.getTime();
 	if (delayMs < 0) throw new Error("Wake time is already in the past.");
 	if (delayMs > MAX_WAIT_MS) throw new Error("WakeWait caps a single wait at 7 days.");
 	return { ...options, wakeAt, delayMs, prompt: promptParts.join(" ").trim() };
@@ -218,7 +233,9 @@ async function runOrSchedule(task, options, statePath) {
 	console.log(`state: ${statePath}`);
 	await runPiWaitWorker(task.id, { statePath });
 	const latest = readPiWaitState(statePath).tasks[task.id];
-	console.log(`${task.id} ${latest?.status ?? "unknown"}${latest?.outcome ? ` (${latest.outcome})` : ""}`);
+	console.log(latest
+		? `${task.id} ${latest.status ?? "unknown"}${latest.outcome ? ` (${latest.outcome})` : ""}`
+		: `${task.id} completed and cleaned`);
 }
 
 async function sleepCommand(argv) {
@@ -226,21 +243,19 @@ async function sleepCommand(argv) {
 	const cwd = options.cwd || process.cwd();
 	const statePath = options.statePath || defaultPiWaitStatePath(cwd);
 	const id = options.id || makeTaskId("sleep");
-	const startedAt = new Date().toISOString();
+	const timing = makeTaskTiming(options.wakeAt);
 	const task = {
 		id,
 		kind: "sleep",
 		status: "running",
 		cwd,
-		durationMs: options.delayMs,
-		startedAt,
+		...timing,
 		wakeAt: options.wakeAt.toISOString(),
-		deadlineAt: options.wakeAt.toISOString(),
+		cleanupOnReady: !options.keepRecord,
 		prompt: options.prompt || undefined,
 		onReady: options.onReady,
-		createdAt: startedAt,
 	};
-	console.log(`wake time: ${options.wakeAt.toISOString()} (${formatDuration(options.delayMs)})`);
+	console.log(`wake time: ${options.wakeAt.toISOString()} (${formatDuration(timing.durationMs)})`);
 	await runOrSchedule(task, options, statePath);
 }
 
@@ -250,6 +265,7 @@ async function waitForCommand(argv) {
 	const statePath = options.statePath || defaultPiWaitStatePath(cwd);
 	const id = options.id || makeTaskId("wait");
 	const deadline = new Date(Date.now() + options.timeoutMs);
+	const timing = makeTaskTiming(deadline);
 	const task = {
 		id,
 		kind: "wait-for",
@@ -261,12 +277,11 @@ async function waitForCommand(argv) {
 		everyMs: options.everyMs,
 		healthEveryMs: options.healthLogs.length > 0 ? options.healthEveryMs : 0,
 		healthLogs: options.healthLogs,
-		deadlineAt: deadline.toISOString(),
+		...timing,
+		cleanupOnReady: false,
 		successPrompt: options.successPrompt,
 		timeoutPrompt: options.timeoutPrompt,
 		onReady: options.onReady,
-		createdAt: new Date().toISOString(),
-		startedAt: new Date().toISOString(),
 	};
 	if (options.file) console.log(`file: ${options.file}`);
 	else if (options.containsPath) console.log(`contains: ${options.containsPath} includes ${JSON.stringify(options.containsText)}`);
@@ -352,7 +367,7 @@ function patchCommand(argv) {
 function usage() {
 	return [
 		"Usage:",
-		"  wakewait sleep <30s|5m|2h|until HH:MM|date> [then prompt] [--background] [--on-ready <command>]",
+		"  wakewait sleep <30s|5m|2h|until HH:MM|date> [then prompt] [--background] [--keep-record] [--on-ready <command>]",
 		"  wakewait wait-for (--file <path> | --contains <path> <text> | --condition <command>) --every <duration> --timeout <duration> [--background] [--health-log <path>] [--health-every <duration|off>]",
 		"  wakewait status [--state <path>] [--json]",
 		"  wakewait cancel <id|all> [--state <path>]",

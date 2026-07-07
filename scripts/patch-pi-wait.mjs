@@ -215,6 +215,14 @@ function updatePiWaitTask(statePath, id, patch) {
 	return state.tasks[id];
 }
 
+function removePiWaitTask(statePath, id) {
+	const state = readPiWaitState(statePath);
+	if (!state.tasks[id]) return false;
+	delete state.tasks[id];
+	writePiWaitState(statePath, state);
+	return true;
+}
+
 function sleep(ms) {
 	return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
@@ -364,6 +372,9 @@ async function markReadyAndLaunch(statePath, id, outcome, patch = {}) {
 		resumePid: pid,
 		resumeStartedAt: pid ? new Date().toISOString() : undefined,
 	});
+	if (task.cleanupOnReady === true) {
+		removePiWaitTask(statePath, id);
+	}
 }
 
 export async function runPiWaitWorker(id, options = {}) {

@@ -6,7 +6,7 @@
 
 Efficient local waiting for agent CLIs.
 
-WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It wraps simple local sleep in the `wakewait` CLI, records wall-clock state for interrupted waits, polls deterministic rules for `wait-for`, and avoids calling the model during the wait loop.
+WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It wraps simple local sleep in the `wakewait` CLI, automatically records wall-clock state for interrupted waits, polls deterministic rules for `wait-for`, and avoids calling the model during the wait loop.
 
 WakeWait is not an intelligent scheduler. It is a small local waiting layer plus one Codex skill that helps the agent choose simple wait intervals.
 
@@ -16,7 +16,9 @@ After installation, the `wakewait` skill is intended to become Codex's default b
 
 The `wakewait` CLI exists to make local waiting consistent and recoverable:
 
-- Record `startedAt`, `wakeAt`, and task state so an interrupted session can check elapsed/remaining time later.
+- Automatically read local time and record `startedAt`, `wakeAt`, and task state so an interrupted session can check elapsed/remaining time later.
+- Store default wait state per project in `.codex-wait/tasks.json`.
+- Clean completed sleep records after wake unless `--keep-record` is used.
 - Sleep locally with near-native overhead: one CLI process, a state write before sleeping, and a final state update after wake.
 - Keep a background local wait running after the CLI command returns.
 - Poll a fixed rule such as file exists, file contains text, or command exits 0.
@@ -26,6 +28,8 @@ The `wakewait` CLI exists to make local waiting consistent and recoverable:
 The core is still simple: local sleep plus local if/else checks. The skill may advise shorter checks early and longer checks after a job looks stable, but that policy stays in the agent, not in the CLI.
 
 WakeWait always uses real wall-clock timestamps for persisted waits. For example, if a one-hour sleep starts, the network drops after 30 minutes, and Codex is restarted two hours later, `wakewait status` compares the current time with the original `startedAt` and `wakeAt`; it will show the task as elapsed/overdue instead of pretending only the first 30 minutes counted.
+
+Multiple projects are separated by default because each project uses its own `.codex-wait/tasks.json`. Use `--cwd <project>` or `--state <path>` only when you need to target a different project or storage file explicitly.
 
 ## One-Click Install
 
@@ -110,6 +114,14 @@ Windows PowerShell:
 & $ww sleep 1h
 ```
 
+Completed sleep records are cleaned from state by default:
+
+```powershell
+& $ww sleep 10m --keep-record
+```
+
+Use `--keep-record` only when you want to inspect the completed sleep task later.
+
 macOS / Linux:
 
 ```bash
@@ -118,7 +130,7 @@ macOS / Linux:
 "$ww" sleep 1h
 ```
 
-WakeWait records the sleep start time before waiting, then uses local wall-clock time for status and recovery. Use background mode when you need the wait to continue after the command returns.
+WakeWait CLI records the sleep start time internally before waiting, then uses local wall-clock time for status and recovery. Use background mode when you need the wait to continue after the command returns.
 
 Windows PowerShell:
 
@@ -195,6 +207,7 @@ Useful flags:
 | Flag | Purpose |
 | --- | --- |
 | `--background` | Optional background worker that continues after the CLI command exits |
+| `--keep-record` | Preserve a completed sleep record instead of cleaning it after wake |
 | `--on-ready "<command>"` | Optional command to run after sleep wakes, a condition succeeds, or a timeout occurs |
 | `--file <path>` | Succeed when a file exists |
 | `--contains <path> <text>` | Succeed when a file contains fixed text |
