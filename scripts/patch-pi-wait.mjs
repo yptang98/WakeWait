@@ -155,12 +155,17 @@ export function listPiWaitTasks(statePath = defaultPiWaitStatePath(), now = Date
 	return Object.values(state.tasks).map((task) => {
 		const deadlineMs = Date.parse(task.deadlineAt ?? task.wakeAt ?? "");
 		const nextCheckMs = Date.parse(task.nextCheckAt ?? "");
+		const reviewEveryMs = Number(task.reviewEveryMs) || 0;
+		const reviewBaseMs = Date.parse(task.lastReviewAt ?? task.startedAt ?? task.createdAt ?? "");
+		const nextReviewMs = reviewEveryMs > 0 && Number.isFinite(reviewBaseMs) ? reviewBaseMs + reviewEveryMs : undefined;
 		const status = taskStatus(task, now);
 		return {
 			...task,
 			status,
 			remainingMs: Number.isFinite(deadlineMs) ? deadlineMs - now : undefined,
 			nextCheckInMs: Number.isFinite(nextCheckMs) ? nextCheckMs - now : undefined,
+			nextReviewInMs: nextReviewMs === undefined ? undefined : nextReviewMs - now,
+			reviewDue: nextReviewMs !== undefined && nextReviewMs <= now && (status === "running" || status === "background"),
 		};
 	}).sort((left, right) => String(left.updatedAt ?? "").localeCompare(String(right.updatedAt ?? "")));
 }
@@ -260,6 +265,9 @@ function launchReadyAction(task, outcome) {
 		PI_WAIT_TASK_ID: task.id ?? "",
 		PI_WAIT_OUTCOME: outcome,
 		PI_WAIT_STATE_PATH: task.statePath ?? "",
+		WAKEWAIT_TASK_ID: task.id ?? "",
+		WAKEWAIT_OUTCOME: outcome,
+		WAKEWAIT_STATE_PATH: task.statePath ?? "",
 	};
 	if (typeof task.onReady === "string" && task.onReady.trim()) {
 		return launchDetached(task.onReady, [], { cwd: task.cwd, env, shell: true });
@@ -273,6 +281,26 @@ function launchReadyAction(task, outcome) {
 		}
 	}
 	return undefined;
+}
+
+function launchReviewAction(task, result, statePath) {
+	if (typeof task.onReview !== "string" || !task.onReview.trim()) {
+		return undefined;
+	}
+	const env = {
+		...process.env,
+		PI_WAIT_TASK_ID: task.id ?? "",
+		PI_WAIT_OUTCOME: "review",
+		PI_WAIT_STATE_PATH: statePath,
+		PI_WAIT_LAST_EXIT_CODE: result.exitCode === undefined ? "" : String(result.exitCode),
+		PI_WAIT_LAST_OUTPUT: result.output ?? "",
+		WAKEWAIT_TASK_ID: task.id ?? "",
+		WAKEWAIT_OUTCOME: "review",
+		WAKEWAIT_STATE_PATH: statePath,
+		WAKEWAIT_LAST_EXIT_CODE: result.exitCode === undefined ? "" : String(result.exitCode),
+		WAKEWAIT_LAST_OUTPUT: result.output ?? "",
+	};
+	return launchDetached(task.onReview, [], { cwd: task.cwd, env, shell: true });
 }
 
 async function markReadyAndLaunch(statePath, id, outcome, patch = {}) {
@@ -328,6 +356,10 @@ export async function runPiWaitWorker(id, options = {}) {
 				});
 				return;
 			}
+			const reviewEveryMs = Number(task.reviewEveryMs) || 0;
+			const reviewBaseMs = Date.parse(task.lastReviewAt ?? task.startedAt ?? task.createdAt ?? "");
+			const reviewDue = reviewEveryMs > 0 && Number.isFinite(reviewBaseMs) && Date.now() - reviewBaseMs >= reviewEveryMs;
+			const reviewPid = reviewDue ? launchReviewAction({ ...task, statePath }, result, statePath) : undefined;
 			const delay = Math.max(1000, Math.min(
 				Number(task.everyMs) || 60 * 1000,
 				Number.isFinite(deadlineMs) ? deadlineMs - Date.now() : 60 * 1000,
@@ -339,6 +371,9 @@ export async function runPiWaitWorker(id, options = {}) {
 				lastTimedOut: result.timedOut,
 				lastOutput: result.output,
 				nextCheckAt: new Date(Date.now() + delay).toISOString(),
+				lastReviewAt: reviewPid ? new Date().toISOString() : task.lastReviewAt,
+				reviewPid: reviewPid ?? task.reviewPid,
+				reviewStartedAt: reviewPid ? new Date().toISOString() : task.reviewStartedAt,
 			});
 			await sleep(delay);
 			continue;

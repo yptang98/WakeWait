@@ -200,6 +200,11 @@ function feynmanWaitPatchScriptPath() {
     if (process.env.PI_WAIT_PATCH_BIN || process.env.CODEX_WAIT_PATCH_BIN) {
         return process.env.PI_WAIT_PATCH_BIN || process.env.CODEX_WAIT_PATCH_BIN;
     }
+    const wakewaitHome = process.env.WAKEWAIT_HOME || (process.env.USERPROFILE || process.env.HOME ? path.join(process.env.USERPROFILE || process.env.HOME, ".wakewait") : undefined);
+    if (wakewaitHome) {
+        const wakewaitScript = path.join(wakewaitHome, "scripts", "patch-pi-wait.mjs");
+        if (fs.existsSync(wakewaitScript)) return wakewaitScript;
+    }
     if (process.env.FEYNMAN_BIN_PATH) {
         return path.resolve(path.dirname(process.env.FEYNMAN_BIN_PATH), "..", "scripts", "patch-pi-wait.mjs");
     }
@@ -820,6 +825,11 @@ function makeFeynmanWaitResumeConfig(cwd) {
 function feynmanWaitPatchScriptPath() {
     if (process.env.PI_WAIT_PATCH_BIN || process.env.CODEX_WAIT_PATCH_BIN) {
         return process.env.PI_WAIT_PATCH_BIN || process.env.CODEX_WAIT_PATCH_BIN;
+    }
+    const wakewaitHome = process.env.WAKEWAIT_HOME || (process.env.USERPROFILE || process.env.HOME ? path.join(process.env.USERPROFILE || process.env.HOME, ".wakewait") : undefined);
+    if (wakewaitHome) {
+        const wakewaitScript = path.join(wakewaitHome, "scripts", "patch-pi-wait.mjs");
+        if (fs.existsSync(wakewaitScript)) return wakewaitScript;
     }
     if (process.env.FEYNMAN_BIN_PATH) {
         return path.resolve(path.dirname(process.env.FEYNMAN_BIN_PATH), "..", "scripts", "patch-pi-wait.mjs");

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v0}"
+version="${WAKEWAIT_VERSION:-v1}"
 root_arg=""
 if [ "${1:-}" = "--root" ]; then
   root_arg="--root $2"
@@ -12,13 +12,7 @@ find_node() {
     command -v node
     return
   fi
-  for candidate in "$HOME"/.local/share/feynman/feynman-*/node/node; do
-    if [ -x "$candidate" ]; then
-      printf '%s\n' "$candidate"
-      return
-    fi
-  done
-  echo "Node.js was not found. Install Feynman first or install Node.js." >&2
+  echo "Node.js was not found. Install Node.js 20 or newer, then rerun the WakeWait installer." >&2
   exit 1
 }
 

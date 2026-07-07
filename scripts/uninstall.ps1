@@ -7,12 +7,7 @@ $ErrorActionPreference = "Stop"
 function Find-Node {
   $node = Get-Command node -ErrorAction SilentlyContinue
   if ($node) { return $node.Source }
-  $bundles = Get-ChildItem "$env:LOCALAPPDATA\Programs\feynman" -Directory -Filter "feynman-*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-  foreach ($bundle in $bundles) {
-    $candidate = Join-Path $bundle.FullName "node\node.exe"
-    if (Test-Path $candidate) { return $candidate }
-  }
-  throw "Node.js was not found. Install Feynman first or install Node.js."
+  throw "Node.js was not found. Install Node.js 20 or newer, then rerun the WakeWait uninstaller."
 }
 
 $scriptPath = Join-Path $HOME ".wakewait\scripts\uninstall.mjs"

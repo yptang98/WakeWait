@@ -1,24 +1,25 @@
 {
   "name": "wakewait",
-  "version": "0.0.0",
-  "description": "WakeWait: auto sleep and long waits for agent CLIs",
+  "version": "1.0.0",
+  "description": "WakeWait: independent auto sleep and long waits for agent CLIs",
   "license": "MIT",
   "type": "module",
   "bin": {
+    "wakewait": "scripts/wakewait.mjs",
     "pi-wait-patch": "scripts/patch-pi-wait.mjs",
     "wakewait-install": "scripts/install.mjs",
     "wakewait-uninstall": "scripts/uninstall.mjs"
   },
   "scripts": {
-    "check": "node --check scripts/install.mjs && node --check scripts/uninstall.mjs && node --check scripts/patch-pi-wait.mjs && node --check scripts/lib/pi-sleep-patch.mjs"
+    "check": "node --check scripts/wakewait.mjs && node --check scripts/install.mjs && node --check scripts/uninstall.mjs && node --check scripts/patch-pi-wait.mjs && node --check scripts/lib/pi-sleep-patch.mjs"
   },
   "keywords": [
     "wakewait",
     "auto-sleep",
     "long-waits",
     "agent-cli",
-    "feynman",
-    "pi"
+    "codex-plugin",
+    "pi-runtime"
   ],
   "repository": {
     "type": "git",

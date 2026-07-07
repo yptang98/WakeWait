@@ -1,8 +1,8 @@
 param(
-  [string]$Version = "v0",
+  [string]$Version = "v1",
   [string]$Root = "",
   [switch]$NoCodexSkills,
-  [switch]$NoFeynmanSkills
+  [switch]$NoPatch
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,15 +10,13 @@ $ErrorActionPreference = "Stop"
 function Find-Node {
   $node = Get-Command node -ErrorAction SilentlyContinue
   if ($node) { return $node.Source }
-  $bundles = Get-ChildItem "$env:LOCALAPPDATA\Programs\feynman" -Directory -Filter "feynman-*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-  foreach ($bundle in $bundles) {
-    $candidate = Join-Path $bundle.FullName "node\node.exe"
-    if (Test-Path $candidate) { return $candidate }
-  }
-  throw "Node.js was not found. Install Feynman first or install Node.js."
+  throw "Node.js was not found. Install Node.js 20 or newer, then rerun the WakeWait installer."
 }
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") -ErrorAction SilentlyContinue
+$repoRoot = $null
+if ($PSScriptRoot) {
+  $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") -ErrorAction SilentlyContinue
+}
 $workDir = $null
 if ($repoRoot -and (Test-Path (Join-Path $repoRoot ".codex-plugin\plugin.json"))) {
   $workDir = $repoRoot.Path
@@ -37,5 +35,5 @@ $nodeExe = Find-Node
 $args = @((Join-Path $workDir "scripts\install.mjs"))
 if ($Root) { $args += @("--root", $Root) }
 if ($NoCodexSkills) { $args += "--no-codex-skills" }
-if ($NoFeynmanSkills) { $args += "--no-feynman-skills" }
+if ($NoPatch) { $args += "--no-patch" }
 & $nodeExe @args

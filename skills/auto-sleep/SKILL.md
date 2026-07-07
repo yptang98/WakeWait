@@ -1,22 +1,27 @@
 ---
 name: auto-sleep
-description: Automatically decide when a long-running training, download, upload, queue, evaluation, remote job, or shell command should be deferred instead of keeping the model active. Use when Codex has started or observed work that is likely to take minutes or hours, when repeated polling would waste model time, or when persisted wait state should be checked after an interruption.
+description: Automatically decide when a long-running training, download, upload, queue, evaluation, remote job, or shell command should be deferred with WakeWait instead of keeping the model active. Use when Codex has started or observed work likely to take minutes or hours, repeated polling would waste model time, or persisted wait state should be checked after an interruption.
 ---
 
 # Auto Sleep
 
-Use this skill as the policy layer for automatic waiting. It must not introduce a new `/auto-sleep` command or replace existing behavior. Choose the existing `/sleep` or `/wait-for` runtime commands when waiting is the right next action.
+Use this skill as the policy layer for automatic waiting. It must not introduce a new `/auto-sleep` command or replace existing behavior. Decide whether waiting is appropriate, then use `deferred-wait` for the exact mechanism.
 
-If both `auto-sleep` and `deferred-wait` apply, use `auto-sleep` to decide whether to defer and use `deferred-wait` as the mechanism reference for exact `/sleep` or `/wait-for` syntax.
+Prefer a host-native `/sleep` or `/wait-for` command when it is visibly available in the current CLI. Otherwise use the independent WakeWait CLI:
+
+```bash
+wakewait sleep 30m --background --on-ready "<command>"
+wakewait wait-for --condition "<shell command>" --every 5m --timeout 6h --background
+```
 
 ## First Check
 
-Before starting a new wait, run `pi-wait-patch status` when either is true:
+Before starting a new wait, run `wakewait status` when either is true:
 
 - `.codex-wait/tasks.json` exists in the current project.
 - The current task mentions resuming, interruption, previous wait, training progress, downloads, queues, or long-running jobs.
 
-If a persisted task is overdue, inspect the relevant condition, logs, or outputs instead of sleeping again blindly. If a task is still running with meaningful time remaining, continue from that state rather than creating a duplicate wait.
+If a persisted task is overdue or marked `review due`, inspect the relevant condition, logs, tmux session, process, or outputs before sleeping again. If a task is still running with meaningful time remaining, continue from that state instead of creating a duplicate wait.
 
 ## Auto-Sleep Decision
 
@@ -37,27 +42,21 @@ Do not defer when:
 
 ## Choose Command
 
-Prefer `/wait-for` when a concrete condition can be checked:
+Prefer condition polling when a cheap command can decide readiness:
 
-```text
-/wait-for --condition "<shell command>" --every <duration> --timeout <duration> --persist --review-every 30m --review "<health checks>" then <success action> else <timeout diagnosis>
+```bash
+wakewait wait-for --condition "<shell command>" --every <duration> --timeout <duration> --background --review-every 30m --review "<health checks>"
 ```
 
-Use `/sleep` only when there is no reliable condition:
+Use timed sleep only when there is no reliable condition:
 
-```text
-/sleep --persist <duration> then <specific resume action>
+```bash
+wakewait sleep <duration> --background --on-ready "<specific resume command>"
 ```
 
-For training, downloads, queues, and remote jobs longer than about 10 minutes, prefer `--persist`. For waits longer than about 30 minutes, keep health reviews enabled unless the condition is low-risk.
+For training, downloads, queues, and remote jobs longer than about 10 minutes, keep persisted state; WakeWait does this by default. For waits longer than about 30 minutes, keep health reviews enabled unless the condition is low-risk.
 
-Use `--background` only when the user explicitly wants the wait to continue after the CLI exits. It implies `--persist` and starts a detached worker. Do not add it by default.
-
-```text
-/wait-for --condition "<shell command>" --every 5m --timeout 6h --background --review-every 30m then <resume prompt> else <timeout prompt>
-```
-
-If a custom recovery command is needed, add `--on-ready "<command>"`. Otherwise Feynman-backed runtimes use the saved resume prompt when possible; generic runtimes mark the task `ready` for `pi-wait-patch status`.
+Use `--background` only when the user wants the wait to continue after the current CLI command exits. It is not required for a host-native slash command that already pauses and resumes the agent session.
 
 ## Condition Heuristics
 
@@ -87,11 +86,9 @@ Weak:
 
 ## User Status
 
-Before invoking `/sleep` or `/wait-for`, briefly state:
+Before invoking WakeWait or a host sleep command, briefly state:
 
 - What is still running.
 - Which condition or delay will be used.
-- Whether the wait is persisted.
+- Where the wait state will be visible.
 - When health reviews or timeout will happen.
-
-Avoid blocking waits such as Python `time.sleep()` or shell `sleep` inside a tool call when `/sleep` or `/wait-for` is available.
