@@ -1,6 +1,6 @@
 {
   "name": "wakewait",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Efficient local waiting for agent CLIs.",
   "author": {
     "name": "yptang98",

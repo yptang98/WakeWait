@@ -45,6 +45,9 @@ function copyDir(source, target) {
 function copyManagedSkill(skillName, targetRoot, manifest) {
 	const source = join(repoRoot, "skills", skillName);
 	const target = join(targetRoot, skillName);
+	if (resolve(source) === resolve(target)) {
+		throw new Error(`Refusing to install ${skillName} onto its source directory: ${target}`);
+	}
 	copyDir(source, target);
 	writeFileSync(join(target, ".wakewait-managed"), "managed by WakeWait\n", "utf8");
 	manifest.installedPaths.push(target);
@@ -101,7 +104,9 @@ function detectedCodexSkillRoots(explicitRoots = []) {
 		pushIfExists(roots, "/codex/skills");
 		pushIfExists(roots, "/workspace/codex/skills");
 	}
-	return Array.from(new Set(roots.map((root) => resolve(root))));
+	const sourceSkillsRoot = resolve(repoRoot, "skills");
+	return Array.from(new Set(roots.map((root) => resolve(root))))
+		.filter((root) => root !== sourceSkillsRoot);
 }
 
 function candidateRoots(extraRoots) {
