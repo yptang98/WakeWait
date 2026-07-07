@@ -1,4 +1,4 @@
 interface:
   display_name: "WakeWait"
   short_description: "Low-token wait/sleep routing"
-  default_prompt: "Use $wakewait for low-token wait/sleep routing: native shell sleep for duration waits, bundled scripts for file/text/command readiness."
+  default_prompt: "Use $wakewait for quiet low-token waits: one shell/session, stdin/status polling if available, no chat progress."

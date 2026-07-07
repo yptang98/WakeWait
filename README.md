@@ -49,10 +49,10 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Run the repository installer for my OS and verify the wakewait skill is in my global Codex skills root.
+Run the repository installer for my OS. Let the installer choose the canonical Codex skills root. Do not inspect skill files unless install fails; verify only that one wakewait skill folder exists.
 ```
 
-The installer copies `skills/wakewait` into detected global Codex skill roots such as `CODEX_HOME/skills`, `~/.codex/skills`, or an existing `D:\codex\skills` on Windows.
+The installer copies `skills/wakewait` into one canonical Codex skills root and removes other WakeWait-managed duplicates. This keeps discovery fast and avoids duplicate skill context.
 
 ## Design
 

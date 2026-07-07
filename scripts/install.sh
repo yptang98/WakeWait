@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v2.0.2}"
+version="${WAKEWAIT_VERSION:-v2.0.3}"
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
@@ -40,16 +40,61 @@ copy_skill() {
 }
 
 roots=""
+explicit_roots=0
 if [ "${WAKEWAIT_CODEX_SKILLS:-}" ]; then
   roots="$WAKEWAIT_CODEX_SKILLS"
+  explicit_roots=1
 else
-  codex_home="${CODEX_HOME:-$HOME/.codex}"
-  roots="$codex_home/skills:$HOME/.codex/skills"
   parent_skills="$(cd "$repo_root/.." && pwd)/skills"
-  [ -d "$parent_skills" ] && roots="$roots:$parent_skills"
-  [ -d /codex/skills ] && roots="$roots:/codex/skills"
-  [ -d /workspace/codex/skills ] && roots="$roots:/workspace/codex/skills"
+  if [ "${CODEX_HOME:-}" ]; then
+    roots="$CODEX_HOME/skills"
+  elif [ -d "$parent_skills" ]; then
+    roots="$parent_skills"
+  elif [ -d /codex/skills ]; then
+    roots="/codex/skills"
+  elif [ -d /workspace/codex/skills ]; then
+    roots="/workspace/codex/skills"
+  else
+    roots="$HOME/.codex/skills"
+  fi
 fi
+
+is_installed_root() {
+  check="$(mkdir -p "$1" && cd "$1" && pwd)"
+  old_ifs_inner="$IFS"
+  IFS=':'
+  for installed in $roots; do
+    [ -n "$installed" ] || continue
+    installed_abs="$(mkdir -p "$installed" && cd "$installed" && pwd)"
+    if [ "$check" = "$installed_abs" ]; then
+      IFS="$old_ifs_inner"
+      return 0
+    fi
+  done
+  IFS="$old_ifs_inner"
+  return 1
+}
+
+cleanup_other_roots() {
+  parent_skills="$(cd "$repo_root/.." && pwd)/skills"
+  candidates="$HOME/.codex/skills:$parent_skills:/codex/skills:/workspace/codex/skills"
+  [ "${CODEX_HOME:-}" ] && candidates="$candidates:$CODEX_HOME/skills"
+  old_ifs_cleanup="$IFS"
+  IFS=':'
+  for root in $candidates; do
+    [ -n "$root" ] || continue
+    [ -d "$root" ] || continue
+    [ -L "$root" ] && continue
+    is_installed_root "$root" && continue
+    for legacy in wakewait auto-sleep deferred-wait; do
+      if [ -f "$root/$legacy/.wakewait-managed" ]; then
+        rm -rf "$root/$legacy"
+        echo "[wakewait] removed managed duplicate from $root/$legacy"
+      fi
+    done
+  done
+  IFS="$old_ifs_cleanup"
+}
 
 old_ifs="$IFS"
 IFS=':'
@@ -57,6 +102,7 @@ for root in $roots; do
   [ -n "$root" ] && copy_skill "$root"
 done
 IFS="$old_ifs"
+[ "$explicit_roots" -eq 1 ] || cleanup_other_roots
 
 wake_home="${WAKEWAIT_HOME:-$HOME/.wakewait}"
 mkdir -p "$wake_home/scripts"
@@ -65,4 +111,4 @@ for name in install.ps1 uninstall.ps1 install.sh uninstall.sh; do
 done
 rm -f "$wake_home/bin/wakewait" "$wake_home/bin/pi-wait-patch" \
   "$wake_home/scripts/wakewait.mjs" "$wake_home/scripts/patch-pi-wait.mjs"
-echo "[wakewait] installed WakeWait skill and bundled shell scripts. Restart Codex to refresh loaded skills."
+echo "[wakewait] installed WakeWait to one canonical skill root. Restart Codex to refresh loaded skills."

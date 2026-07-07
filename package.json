@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "2.0.2",
-  "description": "WakeWait: deterministic rule waits for Codex",
+  "version": "2.0.3",
+  "description": "WakeWait: quiet low-token wait/sleep routing for Codex",
   "license": "MIT",
   "type": "module",
   "scripts": {

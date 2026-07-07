@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "2.0.2",
-  "description": "Deterministic rule waits for Codex.",
+  "version": "2.0.3",
+  "description": "Quiet low-token wait/sleep routing for Codex.",
   "author": {
     "name": "yptang98",
     "email": "yptang98@gmail.com",
@@ -14,8 +14,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "WakeWait",
-    "shortDescription": "Deterministic rule waits for Codex.",
-    "longDescription": "WakeWait is a skill-only Codex plugin. Plain fixed-duration delays should stay native, while bundled PowerShell and POSIX scripts handle wait-file, wait-contains, and wait-command without model polling or persistent state.",
+    "shortDescription": "Quiet low-token wait/sleep routing for Codex.",
+    "longDescription": "WakeWait is a skill-only Codex plugin. The installer writes one canonical skill copy by default. Plain fixed-duration delays stay native, while bundled PowerShell and POSIX scripts handle wait-file, wait-contains, and wait-command without model polling or persistent state.",
     "developerName": "yptang98",
     "category": "Productivity",
     "capabilities": ["Automation"],
