@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "1.0.9",
-  "description": "Efficient local waiting for agent CLIs.",
+  "version": "1.0.10",
+  "description": "Efficient native shell sleep for Codex.",
   "author": {
     "name": "yptang98",
     "email": "yptang98@gmail.com",
@@ -10,20 +10,20 @@
   "homepage": "https://github.com/yptang98/WakeWait#readme",
   "repository": "https://github.com/yptang98/WakeWait",
   "license": "MIT",
-  "keywords": ["wakewait", "local-wait", "long-waits", "agent-cli"],
+  "keywords": ["wakewait", "native-sleep", "shell-sleep", "codex-skill"],
   "skills": "./skills/",
   "interface": {
     "displayName": "WakeWait",
-    "shortDescription": "Efficient local waiting for agent CLIs.",
-    "longDescription": "WakeWait provides a default Codex waiting skill and a small local CLI for efficient waiting: near-native local sleep with automatic wall-clock state, persisted recovery for interrupted waits, deterministic file/text/command rules for wait-for, and fixed log health scans without model calls during the wait loop.",
+    "shortDescription": "Efficient native shell sleep for Codex.",
+    "longDescription": "WakeWait is a skill-only Codex plugin that guides agents to use native shell sleep commands such as PowerShell Start-Sleep or POSIX sleep, print a wake timestamp, and avoid model calls while idle. It intentionally does not install a CLI, write state files, patch runtimes, or run background workers.",
     "developerName": "yptang98",
     "category": "Productivity",
-    "capabilities": ["Write", "Automation"],
+    "capabilities": ["Automation"],
     "websiteURL": "https://github.com/yptang98/WakeWait",
     "defaultPrompt": [
-      "Install WakeWait and verify the wakewait skill works.",
-      "Use WakeWait for a long training job with local fixed-rule waits.",
-      "Check and cancel persisted WakeWait tasks."
+      "Use WakeWait for a 10-minute native shell sleep.",
+      "Wait with the host shell, print the wake time, then check a log.",
+      "Install the WakeWait skill-only plugin."
     ],
     "brandColor": "#14B8A6",
     "logo": "./assets/wakewait-cover.png"

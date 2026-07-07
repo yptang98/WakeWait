@@ -1,28 +1,83 @@
 param(
-  [string]$Version = "v1.0.9",
-  [string]$Root = "",
+  [string]$Version = "v1.0.10",
   [string]$CodexHome = "",
-  [string[]]$SkillsRoot = @(),
-  [switch]$NoCodexSkills,
-  [switch]$NoPatch
+  [string[]]$SkillsRoot = @()
 )
 
 $ErrorActionPreference = "Stop"
 
-function Find-Node {
-  $node = Get-Command node -ErrorAction SilentlyContinue
-  if ($node) { return $node.Source }
-  throw "Node.js was not found. Install Node.js 20 or newer, then rerun the WakeWait installer."
+function Resolve-SkillRoots {
+  param([string]$RepoRoot)
+
+  $roots = @()
+  foreach ($root in $SkillsRoot) {
+    if ($root) { $roots += [IO.Path]::GetFullPath($root) }
+  }
+  if ($roots.Count -eq 0 -and $env:WAKEWAIT_CODEX_SKILLS) {
+    $roots += ($env:WAKEWAIT_CODEX_SKILLS -split ';' | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_) })
+  }
+  if ($roots.Count -eq 0) {
+    $homeRoot = if ($CodexHome) { $CodexHome } elseif ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
+    $roots += [IO.Path]::GetFullPath((Join-Path $homeRoot "skills"))
+    $roots += [IO.Path]::GetFullPath((Join-Path $HOME ".codex\skills"))
+    $sibling = Join-Path (Split-Path $RepoRoot -Parent) "skills"
+    if (Test-Path $sibling) { $roots += [IO.Path]::GetFullPath($sibling) }
+    foreach ($drive in [char[]]([char]'C'..[char]'Z')) {
+      $candidate = "$drive`:\codex\skills"
+      if (Test-Path $candidate) { $roots += [IO.Path]::GetFullPath($candidate) }
+    }
+  }
+
+  $sourceSkills = [IO.Path]::GetFullPath((Join-Path $RepoRoot "skills")).TrimEnd('\')
+  $roots |
+    Where-Object { $_ } |
+    ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } |
+    Where-Object { $_ -ine $sourceSkills } |
+    Sort-Object -Unique
+}
+
+function Copy-ManagedSkill {
+  param([string]$RepoRoot, [string]$TargetRoot)
+
+  $source = Join-Path $RepoRoot "skills\wakewait"
+  $target = Join-Path $TargetRoot "wakewait"
+  if ([IO.Path]::GetFullPath($source).TrimEnd('\') -ieq [IO.Path]::GetFullPath($target).TrimEnd('\')) {
+    throw "Refusing to install WakeWait onto its source directory: $target"
+  }
+  New-Item -ItemType Directory -Force -Path $TargetRoot | Out-Null
+  foreach ($legacy in @("wakewait", "auto-sleep", "deferred-wait")) {
+    $legacyPath = Join-Path $TargetRoot $legacy
+    if (Test-Path (Join-Path $legacyPath ".wakewait-managed")) {
+      Remove-Item -LiteralPath $legacyPath -Recurse -Force
+    }
+  }
+  Copy-Item -Path $source -Destination $target -Recurse -Force
+  Set-Content -Path (Join-Path $target ".wakewait-managed") -Value "managed by WakeWait" -Encoding UTF8
+  Write-Host "[wakewait] installed skill to $TargetRoot"
+}
+
+function Cleanup-OldCli {
+  $wakeHome = if ($env:WAKEWAIT_HOME) { $env:WAKEWAIT_HOME } else { Join-Path $HOME ".wakewait" }
+  foreach ($path in @(
+    (Join-Path $wakeHome "bin\wakewait.cmd"),
+    (Join-Path $wakeHome "bin\pi-wait-patch.cmd"),
+    (Join-Path $wakeHome "bin\wakewait"),
+    (Join-Path $wakeHome "bin\pi-wait-patch"),
+    (Join-Path $wakeHome "scripts\wakewait.mjs"),
+    (Join-Path $wakeHome "scripts\patch-pi-wait.mjs")
+  )) {
+    if (Test-Path $path) { Remove-Item -LiteralPath $path -Force }
+  }
 }
 
 $repoRoot = $null
 if ($PSScriptRoot) {
-  $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") -ErrorAction SilentlyContinue
+  $candidate = Resolve-Path (Join-Path $PSScriptRoot "..") -ErrorAction SilentlyContinue
+  if ($candidate -and (Test-Path (Join-Path $candidate.Path ".codex-plugin\plugin.json"))) {
+    $repoRoot = $candidate.Path
+  }
 }
-$workDir = $null
-if ($repoRoot -and (Test-Path (Join-Path $repoRoot ".codex-plugin\plugin.json"))) {
-  $workDir = $repoRoot.Path
-} else {
+if (-not $repoRoot) {
   $tmp = Join-Path ([IO.Path]::GetTempPath()) ("wakewait-install-" + [guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Path $tmp | Out-Null
   $zipPath = Join-Path $tmp "wakewait.zip"
@@ -30,22 +85,11 @@ if ($repoRoot -and (Test-Path (Join-Path $repoRoot ".codex-plugin\plugin.json"))
   Write-Host "==> Downloading WakeWait $Version"
   Invoke-WebRequest -Uri $url -OutFile $zipPath
   Expand-Archive -Path $zipPath -DestinationPath $tmp
-  $workDir = (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName
+  $repoRoot = (Get-ChildItem $tmp -Directory | Select-Object -First 1).FullName
 }
 
-$nodeExe = Find-Node
-$args = @((Join-Path $workDir "scripts\install.mjs"))
-if ($Root) { $args += @("--root", $Root) }
-if ($CodexHome) { $args += @("--codex-home", $CodexHome) }
-foreach ($rootPath in $SkillsRoot) {
-  if ($rootPath) { $args += @("--skills-root", $rootPath) }
+foreach ($root in Resolve-SkillRoots $repoRoot) {
+  Copy-ManagedSkill -RepoRoot $repoRoot -TargetRoot $root
 }
-if ($NoCodexSkills) { $args += "--no-codex-skills" }
-if ($NoPatch) { $args += "--no-patch" }
-& $nodeExe @args
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-$wakewaitHome = if ($env:WAKEWAIT_HOME) { $env:WAKEWAIT_HOME } else { Join-Path $HOME ".wakewait" }
-$binDir = Join-Path $wakewaitHome "bin"
-Write-Host "==> WakeWait CLI launcher: $binDir\wakewait.cmd"
-Write-Host "==> Verify with: & `"$binDir\wakewait.cmd`" status"
+Cleanup-OldCli
+Write-Host "[wakewait] installed skill-only WakeWait. Restart Codex to refresh loaded skills."

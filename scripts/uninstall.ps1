@@ -1,21 +1,53 @@
 param(
-  [switch]$KeepState
+  [string]$CodexHome = "",
+  [string[]]$SkillsRoot = @(),
+  [switch]$KeepOldCliFiles
 )
 
 $ErrorActionPreference = "Stop"
 
-function Find-Node {
-  $node = Get-Command node -ErrorAction SilentlyContinue
-  if ($node) { return $node.Source }
-  throw "Node.js was not found. Install Node.js 20 or newer, then rerun the WakeWait uninstaller."
+function Resolve-SkillRoots {
+  $roots = @()
+  foreach ($root in $SkillsRoot) {
+    if ($root) { $roots += [IO.Path]::GetFullPath($root) }
+  }
+  if ($roots.Count -eq 0 -and $env:WAKEWAIT_CODEX_SKILLS) {
+    $roots += ($env:WAKEWAIT_CODEX_SKILLS -split ';' | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_) })
+  }
+  if ($roots.Count -eq 0) {
+    $homeRoot = if ($CodexHome) { $CodexHome } elseif ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
+    $roots += [IO.Path]::GetFullPath((Join-Path $homeRoot "skills"))
+    $roots += [IO.Path]::GetFullPath((Join-Path $HOME ".codex\skills"))
+    foreach ($drive in [char[]]([char]'C'..[char]'Z')) {
+      $candidate = "$drive`:\codex\skills"
+      if (Test-Path $candidate) { $roots += [IO.Path]::GetFullPath($candidate) }
+    }
+  }
+  $roots | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\') } | Sort-Object -Unique
 }
 
-$wakewaitHome = if ($env:WAKEWAIT_HOME) { $env:WAKEWAIT_HOME } else { Join-Path $HOME ".wakewait" }
-$scriptPath = Join-Path $wakewaitHome "scripts\uninstall.mjs"
-if (-not (Test-Path $scriptPath)) {
-  throw "WakeWait uninstall script not found at $scriptPath"
+foreach ($root in Resolve-SkillRoots) {
+  foreach ($skill in @("wakewait", "auto-sleep", "deferred-wait")) {
+    $target = Join-Path $root $skill
+    if (Test-Path (Join-Path $target ".wakewait-managed")) {
+      Remove-Item -LiteralPath $target -Recurse -Force
+      Write-Host "[wakewait] removed $target"
+    }
+  }
 }
-$args = @($scriptPath)
-if ($KeepState) { $args += "--keep-state" }
-& (Find-Node) @args
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+if (-not $KeepOldCliFiles) {
+  $wakeHome = if ($env:WAKEWAIT_HOME) { $env:WAKEWAIT_HOME } else { Join-Path $HOME ".wakewait" }
+  foreach ($path in @(
+    (Join-Path $wakeHome "bin\wakewait.cmd"),
+    (Join-Path $wakeHome "bin\pi-wait-patch.cmd"),
+    (Join-Path $wakeHome "bin\wakewait"),
+    (Join-Path $wakeHome "bin\pi-wait-patch"),
+    (Join-Path $wakeHome "scripts\wakewait.mjs"),
+    (Join-Path $wakeHome "scripts\patch-pi-wait.mjs")
+  )) {
+    if (Test-Path $path) { Remove-Item -LiteralPath $path -Force }
+  }
+}
+
+Write-Host "[wakewait] uninstalled skill-only WakeWait. Restart Codex to refresh loaded skills."

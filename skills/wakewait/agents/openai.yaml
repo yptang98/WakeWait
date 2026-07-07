@@ -1,4 +1,4 @@
 interface:
   display_name: "WakeWait"
-  short_description: "Default local sleep and wait rules"
-  default_prompt: "Use $wakewait first for sleep, wait, pause, polling, training/download waits, wall-clock state, and deterministic WakeWait rules."
+  short_description: "Efficient native shell sleep"
+  default_prompt: "Use $wakewait to wait with native shell sleep, print the wake time, and avoid model calls while idle."

@@ -1,25 +1,19 @@
 {
   "name": "wakewait",
-  "version": "1.0.9",
-  "description": "WakeWait: efficient local waiting for agent CLIs",
+  "version": "1.0.10",
+  "description": "WakeWait: efficient native shell sleep skill for Codex",
   "license": "MIT",
   "type": "module",
-  "bin": {
-    "wakewait": "scripts/wakewait.mjs",
-    "pi-wait-patch": "scripts/patch-pi-wait.mjs",
-    "wakewait-install": "scripts/install.mjs",
-    "wakewait-uninstall": "scripts/uninstall.mjs"
-  },
   "scripts": {
-    "check": "node --check scripts/wakewait.mjs && node --check scripts/install.mjs && node --check scripts/uninstall.mjs && node --check scripts/patch-pi-wait.mjs && node --check scripts/lib/pi-sleep-patch.mjs"
+    "check": "echo WakeWait is skill-only"
   },
   "keywords": [
     "wakewait",
-    "local-wait",
-    "long-waits",
+    "native-sleep",
+    "shell-sleep",
     "agent-cli",
-    "codex-plugin",
-    "pi-runtime"
+    "codex-skill",
+    "codex-plugin"
   ],
   "repository": {
     "type": "git",

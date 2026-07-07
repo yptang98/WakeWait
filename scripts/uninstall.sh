@@ -1,20 +1,35 @@
 #!/usr/bin/env sh
 set -eu
 
-find_node() {
-  if command -v node >/dev/null 2>&1; then
-    command -v node
-    return
-  fi
-  echo "Node.js was not found. Install Node.js 20 or newer, then rerun the WakeWait uninstaller." >&2
-  exit 1
+remove_skill() {
+  target_root="$1"
+  for skill in wakewait auto-sleep deferred-wait; do
+    target="$target_root/$skill"
+    if [ -f "$target/.wakewait-managed" ]; then
+      rm -rf "$target"
+      echo "[wakewait] removed $target"
+    fi
+  done
 }
 
-script_path="$HOME/.wakewait/scripts/uninstall.mjs"
-if [ ! -f "$script_path" ]; then
-  echo "WakeWait uninstall script not found at $script_path" >&2
-  exit 1
+roots=""
+if [ "${WAKEWAIT_CODEX_SKILLS:-}" ]; then
+  roots="$WAKEWAIT_CODEX_SKILLS"
+else
+  codex_home="${CODEX_HOME:-$HOME/.codex}"
+  roots="$codex_home/skills:$HOME/.codex/skills"
+  [ -d /codex/skills ] && roots="$roots:/codex/skills"
+  [ -d /workspace/codex/skills ] && roots="$roots:/workspace/codex/skills"
 fi
 
-node_bin=$(find_node)
-"$node_bin" "$script_path" "$@"
+old_ifs="$IFS"
+IFS=':'
+for root in $roots; do
+  [ -n "$root" ] && remove_skill "$root"
+done
+IFS="$old_ifs"
+
+wake_home="${WAKEWAIT_HOME:-$HOME/.wakewait}"
+rm -f "$wake_home/bin/wakewait" "$wake_home/bin/pi-wait-patch" \
+  "$wake_home/scripts/wakewait.mjs" "$wake_home/scripts/patch-pi-wait.mjs"
+echo "[wakewait] uninstalled skill-only WakeWait. Restart Codex to refresh loaded skills."
