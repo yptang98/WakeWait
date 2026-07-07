@@ -6,21 +6,24 @@
 
 Efficient local waiting for agent CLIs.
 
-WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It uses native shell sleep for simple pauses, records local state for interrupted waits, polls deterministic rules for `wait-for`, and avoids calling the model during the wait loop.
+WakeWait lets Codex or another agent stop spending model time while training jobs, downloads, evaluations, queues, or remote tasks are still running. It wraps simple local sleep in the `wakewait` CLI, records wall-clock state for interrupted waits, polls deterministic rules for `wait-for`, and avoids calling the model during the wait loop.
 
 WakeWait is not an intelligent scheduler. It is a small local waiting layer plus one Codex skill that helps the agent choose simple wait intervals.
 
 ## CLI Purpose
 
-The `wakewait` CLI exists for cases where plain foreground sleep is not enough:
+The `wakewait` CLI exists to make local waiting consistent and recoverable:
 
 - Record `startedAt`, `wakeAt`, and task state so an interrupted session can check elapsed/remaining time later.
+- Sleep locally with near-native overhead: one CLI process, a state write before sleeping, and a final state update after wake.
 - Keep a background local wait running after the CLI command returns.
 - Poll a fixed rule such as file exists, file contains text, or command exits 0.
 - Run fixed log health scans without model calls.
 - Expose `wakewait status` and `wakewait cancel`.
 
 The core is still simple: local sleep plus local if/else checks. The skill may advise shorter checks early and longer checks after a job looks stable, but that policy stays in the agent, not in the CLI.
+
+WakeWait always uses real wall-clock timestamps for persisted waits. For example, if a one-hour sleep starts, the network drops after 30 minutes, and Codex is restarted two hours later, `wakewait status` compares the current time with the original `startedAt` and `wakeAt`; it will show the task as elapsed/overdue instead of pretending only the first 30 minutes counted.
 
 ## One-Click Install
 
@@ -29,7 +32,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify `wakewait status` and `npm run check`, then show me one native shell sleep example and one `wakewait wait-for` example.
+Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify `wakewait status` and `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example.
 ```
 
 Codex can clone the repo, run the installer, install the WakeWait skills, verify the CLI, and report the commands you can use.
@@ -71,21 +74,13 @@ wakewait status
 
 Sleep for a fixed time:
 
-For a short foreground wait, just use the native shell. This is the most comfortable native wait path.
-
-Windows PowerShell:
-
-```powershell
-Start-Sleep -Seconds 60; Get-Date -Format o
-```
-
-macOS / Linux:
-
 ```bash
-sleep 60; date -Iseconds
+wakewait sleep 60s
+wakewait sleep 5m
+wakewait sleep 1h
 ```
 
-Use WakeWait when you need background recovery or persisted state:
+WakeWait records the sleep start time before waiting, then uses local wall-clock time for status and recovery. Use background mode when you need the wait to continue after the command returns:
 
 ```bash
 wakewait sleep 30m --background --on-ready "codex \"check logs/train.log and summarize progress\""
@@ -187,7 +182,7 @@ scripts/uninstall.*
 | `Long Waits`-style skills | Good model policy for deciding when to wait | Depends on the host runtime for actual scheduling and recovery |
 | `Execution Timer`-style MCP tools | Reusable across clients and callable as tools | Adds a service and may not know the local agent session, resume prompt, or project wait state |
 | Cron or watchdog scripts | Durable production automation | Separate from the chat workflow; prompts and recovery must be wired manually |
-| WakeWait | One skill plus a local CLI: native sleep guidance, persisted state, deterministic rule polling, status/cancel, fixed health rules, optional background worker, and optional slash-command patching | Requires Node.js for the CLI; interval choice remains the agent's responsibility |
+| WakeWait | One skill plus a local CLI: near-native local sleep with wall-clock state, deterministic rule polling, status/cancel, fixed health rules, optional background worker, and optional slash-command patching | Requires Node.js for the CLI; interval choice remains the agent's responsibility |
 
 ## License
 

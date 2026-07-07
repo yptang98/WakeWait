@@ -226,17 +226,19 @@ async function sleepCommand(argv) {
 	const cwd = options.cwd || process.cwd();
 	const statePath = options.statePath || defaultPiWaitStatePath(cwd);
 	const id = options.id || makeTaskId("sleep");
+	const startedAt = new Date().toISOString();
 	const task = {
 		id,
 		kind: "sleep",
 		status: "running",
 		cwd,
-		startedAt: new Date().toISOString(),
+		durationMs: options.delayMs,
+		startedAt,
 		wakeAt: options.wakeAt.toISOString(),
 		deadlineAt: options.wakeAt.toISOString(),
 		prompt: options.prompt || undefined,
 		onReady: options.onReady,
-		createdAt: new Date().toISOString(),
+		createdAt: startedAt,
 	};
 	console.log(`wake time: ${options.wakeAt.toISOString()} (${formatDuration(options.delayMs)})`);
 	await runOrSchedule(task, options, statePath);
@@ -289,14 +291,20 @@ function statusCommand(argv) {
 	}
 	for (const task of tasks) {
 		const active = task.status === "running" || task.status === "background" || task.status === "overdue";
-		const timing = active && task.remainingMs !== undefined ? `remaining ${formatDuration(task.remainingMs)}` : "";
+		let timing = "";
+		if (task.status === "overdue") {
+			timing = `overdue by ${formatDuration(task.overdueMs ?? -(task.remainingMs ?? 0))}`;
+		} else if (active && task.remainingMs !== undefined) {
+			timing = `remaining ${formatDuration(task.remainingMs)}`;
+		}
 		const outcome = task.outcome ? ` (${task.outcome})` : "";
 		console.log(`${task.id} [${task.status}${outcome}] ${timing}`.trim());
+		if (active && task.elapsedMs !== undefined) console.log(`  elapsed ${formatDuration(task.elapsedMs)}`);
 		if (task.kind === "wait-for" && task.condition) console.log(`  condition: ${task.condition}`);
 		if (task.kind === "wait-for" && task.file) console.log(`  file: ${task.file}`);
 		if (task.kind === "wait-for" && task.contains) console.log(`  contains: ${task.contains.path} includes ${JSON.stringify(task.contains.text)}`);
 		if (task.kind === "sleep" && task.wakeAt) console.log(`  wake: ${task.wakeAt}`);
-		if (active && task.nextCheckInMs !== undefined) console.log(`  next check in ${formatDuration(task.nextCheckInMs)}`);
+		if (active && task.status !== "overdue" && task.nextCheckInMs !== undefined) console.log(`  next check in ${formatDuration(task.nextCheckInMs)}`);
 		if (task.healthDue) console.log("  health check due: fixed rules will run in the worker");
 		if (task.healthIssue) console.log(`  health issue: ${task.healthIssue.rule} ${task.healthIssue.path}`);
 	}

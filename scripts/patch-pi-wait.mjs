@@ -149,20 +149,22 @@ function formatDuration(ms) {
 }
 
 function taskStatus(task, now = Date.now()) {
-	if (task.status !== "running") {
+	const status = task.status ?? "unknown";
+	if (status !== "running" && status !== "background") {
 		return task.status ?? "unknown";
 	}
 	const deadlineMs = Date.parse(task.deadlineAt ?? task.wakeAt ?? "");
 	if (Number.isFinite(deadlineMs) && deadlineMs <= now) {
 		return "overdue";
 	}
-	return "running";
+	return status;
 }
 
 export function listPiWaitTasks(statePath = defaultPiWaitStatePath(), now = Date.now()) {
 	const state = readPiWaitState(statePath);
 	return Object.values(state.tasks).map((task) => {
 		const deadlineMs = Date.parse(task.deadlineAt ?? task.wakeAt ?? "");
+		const startedMs = Date.parse(task.startedAt ?? task.createdAt ?? "");
 		const nextCheckMs = Date.parse(task.nextCheckAt ?? "");
 		const healthEveryMs = Number(task.healthEveryMs ?? task.reviewEveryMs) || 0;
 		const healthBaseMs = Date.parse(task.lastHealthCheckAt ?? task.startedAt ?? task.createdAt ?? "");
@@ -171,7 +173,9 @@ export function listPiWaitTasks(statePath = defaultPiWaitStatePath(), now = Date
 		return {
 			...task,
 			status,
+			elapsedMs: Number.isFinite(startedMs) ? now - startedMs : undefined,
 			remainingMs: Number.isFinite(deadlineMs) ? deadlineMs - now : undefined,
+			overdueMs: Number.isFinite(deadlineMs) && deadlineMs <= now ? now - deadlineMs : undefined,
 			nextCheckInMs: Number.isFinite(nextCheckMs) ? nextCheckMs - now : undefined,
 			nextHealthInMs: nextHealthMs === undefined ? undefined : nextHealthMs - now,
 			healthDue: nextHealthMs !== undefined && nextHealthMs <= now && (status === "running" || status === "background"),
@@ -380,7 +384,7 @@ export async function runPiWaitWorker(id, options = {}) {
 					status: "background",
 					nextCheckAt: new Date(deadlineMs).toISOString(),
 				});
-				await sleep(Math.min(deadlineMs - now, 60 * 1000));
+				await sleep(deadlineMs - now);
 				continue;
 			}
 			await markReadyAndLaunch(statePath, id, "woke");
@@ -446,17 +450,19 @@ function printWaitStatus(options) {
 		return;
 	}
 	for (const task of tasks) {
+		const active = task.status === "running" || task.status === "background" || task.status === "overdue";
 		const timing = task.status === "overdue"
-			? `overdue by ${formatDuration(task.remainingMs ?? 0)}`
-			: task.status === "running"
+			? `overdue by ${formatDuration(task.overdueMs ?? -(task.remainingMs ?? 0))}`
+			: active
 				? `remaining ${formatDuration(task.remainingMs ?? 0)}`
 				: task.completedAt || task.cancelledAt || task.updatedAt || "";
 		const label = task.kind === "sleep"
 			? (task.wakeAt || task.deadlineAt || "")
 			: (task.file || (task.contains ? `${task.contains.path} contains ${JSON.stringify(task.contains.text)}` : task.condition || ""));
 		console.log(`${task.id} [${task.status}] ${timing}`);
+		if (task.elapsedMs !== undefined && active) console.log(`  elapsed ${formatDuration(task.elapsedMs)}`);
 		if (label) console.log(`  ${label}`);
-		if (task.nextCheckInMs !== undefined && task.status === "running") {
+		if (task.nextCheckInMs !== undefined && active && task.status !== "overdue") {
 			console.log(`  next check in ${formatDuration(task.nextCheckInMs)}`);
 		}
 		if (task.healthIssue) {
