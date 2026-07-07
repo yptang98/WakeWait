@@ -7,34 +7,58 @@ description: Efficient local waiting for Codex using the WakeWait CLI, wall-cloc
 
 Use WakeWait to make waiting cheap and quiet. The core idea is simple:
 
-- Use `wakewait sleep` for fixed time waits.
+- Use the installed WakeWait CLI for fixed time waits.
 - Before sleeping, record `startedAt`, `wakeAt`, and task state in `.codex-wait/tasks.json`.
 - Sleep locally with a lightweight timer that behaves like native sleep and does not call the model.
 - For `wait-for`, loop locally over a fixed rule such as file exists, file contains text, or command exits 0.
 - Do not call the model during the wait loop. Only return to the model after the wait is done, timed out, cancelled, or a fixed health rule fails.
 
-## Sleep
+## CLI Path
 
-Use `wakewait sleep` for fixed foreground waits:
+Do not ask the user to add WakeWait to `PATH`. Prefer the installed launcher path:
+
+PowerShell:
+
+```powershell
+& "$HOME\.wakewait\bin\wakewait.cmd" status
+```
+
+POSIX shell:
 
 ```bash
-wakewait sleep 60s
-wakewait sleep 5m
-wakewait sleep 1h
+"$HOME/.wakewait/bin/wakewait" status
+```
+
+If the launcher is missing, call the script directly with Node:
+
+```bash
+node "$HOME/.wakewait/scripts/wakewait.mjs" status
+```
+
+It is fine to use plain `wakewait` only when the current shell already resolves it.
+
+## Sleep
+
+Use the WakeWait CLI for fixed foreground waits:
+
+```powershell
+& "$HOME\.wakewait\bin\wakewait.cmd" sleep 60s
+& "$HOME\.wakewait\bin\wakewait.cmd" sleep 5m
+& "$HOME\.wakewait\bin\wakewait.cmd" sleep 1h
 ```
 
 Use background mode only when the wait should continue after the command returns:
 
-```bash
-wakewait sleep 30m --background --on-ready "<resume command>"
+```powershell
+& "$HOME\.wakewait\bin\wakewait.cmd" sleep 30m --background --on-ready "<resume command>"
 ```
 
 WakeWait intentionally keeps sleep primitive: it writes state first, waits locally, and checks real wall-clock time later. If a one-hour wait is interrupted after 30 minutes and Codex restarts two hours later, `wakewait status` should report that the original target time has already passed.
 
 Check persisted sleep state:
 
-```bash
-wakewait status
+```powershell
+& "$HOME\.wakewait\bin\wakewait.cmd" status
 ```
 
 The overhead versus direct shell sleep is intentionally small: one CLI process, one state write before the wait, and a final state update after wake. There are no model calls and no periodic model messages while sleeping.
@@ -56,9 +80,9 @@ WakeWait CLI is still just local waiting. It is not responsible for choosing cle
 Prefer the simplest deterministic rule:
 
 ```bash
-wakewait wait-for --file outputs/done.json --every 5m --timeout 6h --background
-wakewait wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
-wakewait wait-for --condition "python scripts/check_queue_empty.py" --every 10m --timeout 6h --background
+"$HOME/.wakewait/bin/wakewait" wait-for --file outputs/done.json --every 5m --timeout 6h --background
+"$HOME/.wakewait/bin/wakewait" wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
+"$HOME/.wakewait/bin/wakewait" wait-for --condition "python scripts/check_queue_empty.py" --every 10m --timeout 6h --background
 ```
 
 Rules:
@@ -74,7 +98,7 @@ Rules:
 Use fixed health checks only when helpful:
 
 ```bash
-wakewait wait-for --file outputs/done.json --every 5m --timeout 6h --background --health-log logs/train.log
+"$HOME/.wakewait/bin/wakewait" wait-for --file outputs/done.json --every 5m --timeout 6h --background --health-log logs/train.log
 ```
 
 `--health-log` scans built-in failure patterns such as CUDA OOM, generic OOM, NaN/Inf loss, traceback, runtime errors, killed process, and segmentation fault. It does not ask the model to judge health.
@@ -95,6 +119,6 @@ This is advice for agent behavior, not a responsibility of the WakeWait CLI.
 Briefly state what will happen:
 
 - The job or task being waited on.
-- The `wakewait sleep` duration or fixed wait rule.
+- The WakeWait sleep duration or fixed wait rule.
 - Whether local state will be persisted.
 - The timeout or next expected check.

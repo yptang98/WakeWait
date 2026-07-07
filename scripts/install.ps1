@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "v1.0.5",
+  [string]$Version = "v1.0.6",
   [string]$Root = "",
   [switch]$NoCodexSkills,
   [switch]$NoPatch
@@ -37,3 +37,9 @@ if ($Root) { $args += @("--root", $Root) }
 if ($NoCodexSkills) { $args += "--no-codex-skills" }
 if ($NoPatch) { $args += "--no-patch" }
 & $nodeExe @args
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$wakewaitHome = if ($env:WAKEWAIT_HOME) { $env:WAKEWAIT_HOME } else { Join-Path $HOME ".wakewait" }
+$binDir = Join-Path $wakewaitHome "bin"
+Write-Host "==> WakeWait CLI launcher: $binDir\wakewait.cmd"
+Write-Host "==> Verify with: & `"$binDir\wakewait.cmd`" status"

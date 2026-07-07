@@ -171,5 +171,5 @@ if (!options.patchRuntime) {
 
 log(`installed helper files to ${wakewaitHome}`);
 log(`launcher directory: ${binDir}`);
-log("add the launcher directory to PATH if wakewait is not found in new shells.");
+log(`use the CLI directly from ${join(binDir, process.platform === "win32" ? "wakewait.cmd" : "wakewait")}`);
 log("restart Codex before relying on newly installed WakeWait skills.");

@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v1.0.5}"
+version="${WAKEWAIT_VERSION:-v1.0.6}"
 root_arg=""
 if [ "${1:-}" = "--root" ]; then
   root_arg="--root $2"
@@ -35,3 +35,8 @@ fi
 node_bin=$(find_node)
 # shellcheck disable=SC2086
 "$node_bin" "$repo_root/scripts/install.mjs" $root_arg
+
+wakewait_home="${WAKEWAIT_HOME:-$HOME/.wakewait}"
+bin_dir="$wakewait_home/bin"
+echo "==> WakeWait CLI launcher: $bin_dir/wakewait"
+echo "==> Verify with: \"$bin_dir/wakewait\" status"

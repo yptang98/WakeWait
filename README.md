@@ -32,7 +32,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify `wakewait status` and `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example.
+Use the README, install Node.js 20+ if needed, run the correct installer for my OS, verify WakeWait by calling its installed launcher path directly, verify `npm run check`, then show me one `wakewait sleep` example and one `wakewait wait-for` example using the installed launcher path.
 ```
 
 Codex can clone the repo, run the installer, install the WakeWait skills, verify the CLI, and report the commands you can use.
@@ -62,53 +62,128 @@ The installer:
 - optionally patches detected Pi coding-agent runtimes with `/sleep` and `/wait-for`
 - creates backups so uninstall can restore patched runtime files
 
-If `wakewait` is not found in a new shell, add `~/.wakewait/bin` to `PATH`, or call the script directly with `node ~/.wakewait/scripts/wakewait.mjs`.
+WakeWait does not modify user `PATH`. The skill tells Codex to call the installed launcher directly:
+
+Windows PowerShell:
+
+```powershell
+& "$HOME\.wakewait\bin\wakewait.cmd" status
+```
+
+macOS / Linux:
+
+```bash
+"$HOME/.wakewait/bin/wakewait" status
+```
+
+If the launcher is missing, call the script directly with `node ~/.wakewait/scripts/wakewait.mjs status`.
 
 ## Usage
 
 Check persisted waits:
 
+Windows PowerShell:
+
+```powershell
+$ww = "$HOME\.wakewait\bin\wakewait.cmd"
+& $ww status
+```
+
+macOS / Linux:
+
 ```bash
-wakewait status
+ww="$HOME/.wakewait/bin/wakewait"
+"$ww" status
 ```
 
 Sleep for a fixed time:
 
-```bash
-wakewait sleep 60s
-wakewait sleep 5m
-wakewait sleep 1h
+Windows PowerShell:
+
+```powershell
+& $ww sleep 60s
+& $ww sleep 5m
+& $ww sleep 1h
 ```
 
-WakeWait records the sleep start time before waiting, then uses local wall-clock time for status and recovery. Use background mode when you need the wait to continue after the command returns:
+macOS / Linux:
 
 ```bash
-wakewait sleep 30m --background --on-ready "codex \"check logs/train.log and summarize progress\""
+"$ww" sleep 60s
+"$ww" sleep 5m
+"$ww" sleep 1h
+```
+
+WakeWait records the sleep start time before waiting, then uses local wall-clock time for status and recovery. Use background mode when you need the wait to continue after the command returns.
+
+Windows PowerShell:
+
+```powershell
+& $ww sleep 30m --background --on-ready "codex `"check logs/train.log and summarize progress`""
+```
+
+macOS / Linux:
+
+```bash
+"$ww" sleep 30m --background --on-ready "codex \"check logs/train.log and summarize progress\""
 ```
 
 Wait for a file:
 
+Windows PowerShell:
+
+```powershell
+& $ww wait-for --file outputs/done.json --every 5m --timeout 6h --background --on-ready "codex `"read outputs/done.json and summarize metrics`""
+```
+
+macOS / Linux:
+
 ```bash
-wakewait wait-for --file outputs/done.json --every 5m --timeout 6h --background --on-ready "codex \"read outputs/done.json and summarize metrics\""
+"$ww" wait-for --file outputs/done.json --every 5m --timeout 6h --background --on-ready "codex \"read outputs/done.json and summarize metrics\""
 ```
 
 Wait for a log rule:
 
+Windows PowerShell:
+
+```powershell
+& $ww wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
+```
+
+macOS / Linux:
+
 ```bash
-wakewait wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
+"$ww" wait-for --contains logs/train.log "Evaluation complete" --every 5m --timeout 6h --background
 ```
 
 Run fixed health rules while waiting:
 
+Windows PowerShell:
+
+```powershell
+& $ww wait-for --file outputs/done.json --every 5m --timeout 6h --background --health-log logs/train.log
+```
+
+macOS / Linux:
+
 ```bash
-wakewait wait-for --file outputs/done.json --every 5m --timeout 6h --background --health-log logs/train.log
+"$ww" wait-for --file outputs/done.json --every 5m --timeout 6h --background --health-log logs/train.log
 ```
 
 Cancel one wait or all waits:
 
+Windows PowerShell:
+
+```powershell
+& $ww cancel <id>
+& $ww cancel all
+```
+
+macOS / Linux:
+
 ```bash
-wakewait cancel <id>
-wakewait cancel all
+"$ww" cancel <id>
+"$ww" cancel all
 ```
 
 Useful flags:
@@ -128,8 +203,16 @@ Useful flags:
 
 WakeWait works without host patching. If you use a Pi-compatible runtime and want `/sleep` and `/wait-for` slash commands, run:
 
+Windows PowerShell:
+
+```powershell
+& $ww patch --root <pi-coding-agent-or-node_modules-path>
+```
+
+macOS / Linux:
+
 ```bash
-wakewait patch --root <pi-coding-agent-or-node_modules-path>
+"$ww" patch --root <pi-coding-agent-or-node_modules-path>
 ```
 
 The patch is optional. It only modifies detected Pi runtime files and writes backups into `~/.wakewait/backups` for uninstall.
@@ -141,7 +224,7 @@ Give Codex this prompt:
 ```text
 Uninstall WakeWait from my local Codex setup.
 
-Use the WakeWait uninstall script from ~/.wakewait, remove installed WakeWait skills, restore backed-up optional runtime files, verify `wakewait` is gone or explain if PATH still points at it, and keep state only if I ask.
+Use the WakeWait uninstall script from ~/.wakewait, remove installed WakeWait skills, restore backed-up optional runtime files, verify the WakeWait launcher path is gone, and keep state only if I ask.
 ```
 
 ## Manual Uninstall
