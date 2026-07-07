@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "2.0.1",
-  "description": "WakeWait: native shell sleep and deterministic wait skill for Codex",
+  "version": "2.0.2",
+  "description": "WakeWait: deterministic rule waits for Codex",
   "license": "MIT",
   "type": "module",
   "scripts": {
