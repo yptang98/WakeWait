@@ -4,33 +4,29 @@
 
 # WakeWait
 
-Efficient native shell sleep for Codex.
+Low-token shell waiting for Codex.
 
-WakeWait is a small Codex skill that teaches agents to wait with the host shell's built-in sleep command instead of using custom CLIs, background schedulers, polling loops, or model-driven waiting. The goal is simple: when work is idle, sleep locally and cheaply, then print the wake time.
+WakeWait v2 is a skill plus bundled shell scripts. Codex reads a tiny skill, then calls the script for sleep or deterministic waiting. The script handles duration parsing, sleeping, polling, timeouts, and timestamps, so the model does not burn tokens or pollute context while idle.
 
-## What It Does
+## Commands
 
 PowerShell:
 
 ```powershell
-Start-Sleep -Seconds 600; Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
+& "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" sleep -Duration 10m
+& "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" wait-file -Path .\outputs\done.json -Every 30s -Timeout 2h
+& "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" wait-contains -Path .\logs\train.log -Text "Evaluation complete" -Every 1m -Timeout 6h
+& "$HOME\.codex\skills\wakewait\scripts\wakewait.ps1" wait-command -Command "python scripts/check_ready.py" -Every 1m -Timeout 2h
 ```
 
 macOS / Linux:
 
 ```bash
-sleep 600; date '+%Y-%m-%d %H:%M:%S %z'
+sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" sleep --duration 10m
+sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" wait-file --path outputs/done.json --every 30s --timeout 2h
+sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" wait-contains --path logs/train.log --text "Evaluation complete" --every 1m --timeout 6h
+sh "$HOME/.codex/skills/wakewait/scripts/wakewait.sh" wait-command --command "python scripts/check_ready.py" --every 1m --timeout 2h
 ```
-
-The skill tells Codex to:
-
-- use native shell sleep for fixed waits
-- convert minutes/hours into seconds
-- avoid model calls while sleeping
-- print the local wake time
-- perform any requested check after the sleep finishes
-
-WakeWait v1.0 is intentionally skill-only. It does not install a `wakewait` CLI, write state files, patch runtimes, run background workers, or implement condition polling.
 
 ## Install
 
@@ -39,7 +35,7 @@ Give Codex this prompt:
 ```text
 Install the latest WakeWait from https://github.com/yptang98/WakeWait.
 
-Use the README, run the correct installer for my OS, verify the wakewait skill was installed into my global Codex skills root, and show me one PowerShell or POSIX native sleep example.
+Use the README, run the correct installer for my OS, verify the wakewait skill and bundled scripts were installed into my global Codex skills root, then show me one sleep and one wait-file example.
 ```
 
 Manual one-line install:
@@ -56,29 +52,14 @@ macOS / Linux:
 curl -fsSL https://raw.githubusercontent.com/yptang98/WakeWait/main/scripts/install.sh | sh
 ```
 
-The installer copies `skills/wakewait` into detected global Codex skill roots such as `CODEX_HOME/skills`, `~/.codex/skills`, or an existing `D:\codex\skills` on Windows. It also removes WakeWait-managed legacy `auto-sleep` and `deferred-wait` skill copies and cleans old WakeWait CLI launchers if present.
+The installer copies `skills/wakewait` into detected global Codex skill roots such as `CODEX_HOME/skills`, `~/.codex/skills`, or an existing `D:\codex\skills` on Windows.
 
-## Usage
+## Design
 
-Ask Codex to wait normally:
-
-```text
-Wait 10 minutes, then check the training log.
-```
-
-With WakeWait loaded, Codex should run something like:
-
-PowerShell:
-
-```powershell
-Start-Sleep -Seconds 600; Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'; Get-Content .\logs\train.log -Tail 80
-```
-
-macOS / Linux:
-
-```bash
-sleep 600; date '+%Y-%m-%d %H:%M:%S %z'; tail -n 80 logs/train.log
-```
+- Skill stays short: just invocation policy and examples.
+- Shell scripts do the real work: sleep, wait-file, wait-contains, wait-command.
+- Output stays quiet: start line, ready/woke/timeout line, no per-poll chatter.
+- No Node runtime, background daemon, model polling loop, or persistent state.
 
 ## Uninstall
 
@@ -93,15 +74,6 @@ macOS / Linux:
 ```bash
 sh "$HOME/.wakewait/scripts/uninstall.sh"
 ```
-
-## Comparison
-
-| Approach | Strength | Limit |
-| --- | --- | --- |
-| Raw native shell sleep | Fastest and simplest | The model may forget the best command or timestamp format |
-| Python sleep wrapper | Portable | Starts Python and adds unnecessary ceremony |
-| Timer/daemon/CLI tools | Can add persistence or background features | More moving parts than needed for simple waits |
-| WakeWait v1.0 | Skill-only guidance for native shell sleep with a wake timestamp | Fixed sleeps only; no persistence, condition polling, or background recovery |
 
 ## License
 

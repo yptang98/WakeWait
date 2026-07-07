@@ -1,7 +1,7 @@
 {
   "name": "wakewait",
-  "version": "1.0.10",
-  "description": "Efficient native shell sleep for Codex.",
+  "version": "2.0.0",
+  "description": "Low-token shell sleep and wait for Codex.",
   "author": {
     "name": "yptang98",
     "email": "yptang98@gmail.com",
@@ -10,20 +10,20 @@
   "homepage": "https://github.com/yptang98/WakeWait#readme",
   "repository": "https://github.com/yptang98/WakeWait",
   "license": "MIT",
-  "keywords": ["wakewait", "native-sleep", "shell-sleep", "codex-skill"],
+  "keywords": ["wakewait", "native-sleep", "shell-wait", "codex-skill"],
   "skills": "./skills/",
   "interface": {
     "displayName": "WakeWait",
-    "shortDescription": "Efficient native shell sleep for Codex.",
-    "longDescription": "WakeWait is a skill-only Codex plugin that guides agents to use native shell sleep commands such as PowerShell Start-Sleep or POSIX sleep, print a wake timestamp, and avoid model calls while idle. It intentionally does not install a CLI, write state files, patch runtimes, or run background workers.",
+    "shortDescription": "Low-token shell sleep and wait for Codex.",
+    "longDescription": "WakeWait is a skill-only Codex plugin with bundled PowerShell and POSIX shell scripts for sleep, wait-file, wait-contains, and wait-command. The skill stays short while scripts handle duration parsing, polling, timeouts, and timestamps without model polling or persistent state.",
     "developerName": "yptang98",
     "category": "Productivity",
     "capabilities": ["Automation"],
     "websiteURL": "https://github.com/yptang98/WakeWait",
     "defaultPrompt": [
-      "Use WakeWait for a 10-minute native shell sleep.",
-      "Wait with the host shell, print the wake time, then check a log.",
-      "Install the WakeWait skill-only plugin."
+      "Use WakeWait for a 10-minute shell sleep.",
+      "Wait for an output file with the bundled WakeWait shell script.",
+      "Install the WakeWait v2 skill and scripts."
     ],
     "brandColor": "#14B8A6",
     "logo": "./assets/wakewait-cover.png"

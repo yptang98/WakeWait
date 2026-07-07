@@ -1,5 +1,5 @@
 param(
-  [string]$Version = "v1.0.10",
+  [string]$Version = "v2.0.0",
   [string]$CodexHome = "",
   [string[]]$SkillsRoot = @()
 )
@@ -70,6 +70,19 @@ function Cleanup-OldCli {
   }
 }
 
+function Install-UninstallScripts {
+  param([string]$RepoRoot)
+  $wakeHome = if ($env:WAKEWAIT_HOME) { $env:WAKEWAIT_HOME } else { Join-Path $HOME ".wakewait" }
+  $target = Join-Path $wakeHome "scripts"
+  New-Item -ItemType Directory -Force -Path $target | Out-Null
+  foreach ($name in @("install.ps1", "uninstall.ps1", "install.sh", "uninstall.sh")) {
+    $source = Join-Path $RepoRoot "scripts\$name"
+    if (Test-Path $source) {
+      Copy-Item -LiteralPath $source -Destination (Join-Path $target $name) -Force
+    }
+  }
+}
+
 $repoRoot = $null
 if ($PSScriptRoot) {
   $candidate = Resolve-Path (Join-Path $PSScriptRoot "..") -ErrorAction SilentlyContinue
@@ -91,5 +104,6 @@ if (-not $repoRoot) {
 foreach ($root in Resolve-SkillRoots $repoRoot) {
   Copy-ManagedSkill -RepoRoot $repoRoot -TargetRoot $root
 }
+Install-UninstallScripts $repoRoot
 Cleanup-OldCli
-Write-Host "[wakewait] installed skill-only WakeWait. Restart Codex to refresh loaded skills."
+Write-Host "[wakewait] installed WakeWait skill and bundled shell scripts. Restart Codex to refresh loaded skills."

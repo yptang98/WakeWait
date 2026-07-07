@@ -1,17 +1,17 @@
 {
   "name": "wakewait",
-  "version": "1.0.10",
-  "description": "WakeWait: efficient native shell sleep skill for Codex",
+  "version": "2.0.0",
+  "description": "WakeWait: low-token shell sleep and wait skill for Codex",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "check": "echo WakeWait is skill-only"
+    "check": "echo WakeWait v2 is skill plus shell scripts"
   },
   "keywords": [
     "wakewait",
     "native-sleep",
-    "shell-sleep",
-    "agent-cli",
+    "shell-wait",
+    "low-token",
     "codex-skill",
     "codex-plugin"
   ],

@@ -32,4 +32,4 @@ IFS="$old_ifs"
 wake_home="${WAKEWAIT_HOME:-$HOME/.wakewait}"
 rm -f "$wake_home/bin/wakewait" "$wake_home/bin/pi-wait-patch" \
   "$wake_home/scripts/wakewait.mjs" "$wake_home/scripts/patch-pi-wait.mjs"
-echo "[wakewait] uninstalled skill-only WakeWait. Restart Codex to refresh loaded skills."
+echo "[wakewait] uninstalled WakeWait skill and bundled shell scripts. Restart Codex to refresh loaded skills."

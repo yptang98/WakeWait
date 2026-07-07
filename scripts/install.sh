@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-version="${WAKEWAIT_VERSION:-v1.0.10}"
+version="${WAKEWAIT_VERSION:-v2.0.0}"
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd)
@@ -59,6 +59,10 @@ done
 IFS="$old_ifs"
 
 wake_home="${WAKEWAIT_HOME:-$HOME/.wakewait}"
+mkdir -p "$wake_home/scripts"
+for name in install.ps1 uninstall.ps1 install.sh uninstall.sh; do
+  [ -f "$repo_root/scripts/$name" ] && cp "$repo_root/scripts/$name" "$wake_home/scripts/$name"
+done
 rm -f "$wake_home/bin/wakewait" "$wake_home/bin/pi-wait-patch" \
   "$wake_home/scripts/wakewait.mjs" "$wake_home/scripts/patch-pi-wait.mjs"
-echo "[wakewait] installed skill-only WakeWait. Restart Codex to refresh loaded skills."
+echo "[wakewait] installed WakeWait skill and bundled shell scripts. Restart Codex to refresh loaded skills."

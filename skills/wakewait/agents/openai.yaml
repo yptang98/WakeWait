@@ -1,4 +1,4 @@
 interface:
   display_name: "WakeWait"
-  short_description: "Efficient native shell sleep"
-  default_prompt: "Use $wakewait to wait with native shell sleep, print the wake time, and avoid model calls while idle."
+  short_description: "Low-token shell sleep and wait"
+  default_prompt: "Use $wakewait to wait with bundled shell scripts for sleep, wait-file, wait-contains, or wait-command without model polling."

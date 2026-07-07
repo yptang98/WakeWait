@@ -50,4 +50,4 @@ if (-not $KeepOldCliFiles) {
   }
 }
 
-Write-Host "[wakewait] uninstalled skill-only WakeWait. Restart Codex to refresh loaded skills."
+Write-Host "[wakewait] uninstalled WakeWait skill and bundled shell scripts. Restart Codex to refresh loaded skills."
